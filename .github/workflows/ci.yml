@@ -75,8 +75,13 @@ jobs:
         pip install "poetry==1.8.3"
         poetry --version
         poetry config virtualenvs.create false
+        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
         poetry lock --no-interaction
+        # app グループを除外してインストール
         poetry install --with dev --without app --no-interaction --no-ansi
+        # デバッグ: 解決木に streamlit が含まれていないか確認
+        echo "---- RESOLVED DEPENDENCY TREE ----"
+        poetry show --tree | sed -n '1,200p'
 
     - name: Run unit tests
       run: |
@@ -113,8 +118,13 @@ jobs:
         pip install "poetry==1.8.3"
         poetry --version
         poetry config virtualenvs.create false
+        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
         poetry lock --no-interaction
+        # app グループを除外してインストール
         poetry install --with dev --without app --no-interaction --no-ansi
+        # デバッグ: 解決木に streamlit が含まれていないか確認
+        echo "---- RESOLVED DEPENDENCY TREE ----"
+        poetry show --tree | sed -n '1,200p'
 
     - name: Create test environment config
       run: |
@@ -222,8 +232,13 @@ jobs:
         pip install "poetry==1.8.3"
         poetry --version
         poetry config virtualenvs.create false
+        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
         poetry lock --no-interaction
+        # app グループを除外してインストール
         poetry install --with dev --without app --no-interaction --no-ansi
+        # デバッグ: 解決木に streamlit が含まれていないか確認
+        echo "---- RESOLVED DEPENDENCY TREE ----"
+        poetry show --tree | sed -n '1,200p'
         pip install nbconvert
 
     - name: Test notebook execution (syntax only)
