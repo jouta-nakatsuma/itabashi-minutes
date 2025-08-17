@@ -74,11 +74,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
         poetry config virtualenvs.create false
-        # dev のみを対象に lock
-        poetry lock --no-interaction --with dev --without app
-        # dev のみインストール
+        # ✅ lock はグループ指定なし（必要なら --no-update だけ）
+        poetry lock --no-interaction --no-update
+        # ✅ グループ指定は install 側だけで使う
         poetry install --no-interaction --no-ansi --with dev --without app
-        # 念のため streamlit が入っていないことを確認
         poetry show streamlit || echo "streamlit not installed (expected)"
 
     - name: Run unit tests
@@ -115,11 +114,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
         poetry config virtualenvs.create false
-        # dev のみを対象に lock
-        poetry lock --no-interaction --with dev --without app
-        # dev のみインストール
+        # ✅ lock はグループ指定なし（必要なら --no-update だけ）
+        poetry lock --no-interaction --no-update
+        # ✅ グループ指定は install 側だけで使う
         poetry install --no-interaction --no-ansi --with dev --without app
-        # 念のため streamlit が入っていないことを確認
         poetry show streamlit || echo "streamlit not installed (expected)"
 
     - name: Create test environment config
@@ -212,11 +210,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.9
-
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -225,16 +218,14 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.10'   # ← 3.10 だけでOK。直前の 3.9 セットアップは削除
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
         poetry config virtualenvs.create false
-        # app と dev を対象に lock
-        poetry lock --no-interaction --with app,dev
-        # app と dev をインストール
+        poetry lock --no-interaction --no-update
         poetry install --no-interaction --no-ansi --with app,dev
         pip install nbconvert
 
