@@ -162,28 +162,35 @@ jobs:
     - name: Validate JSON schema
       run: |
         if [ -f "crawler/sample/sample_minutes.json" ]; then
-          python -c "
-          import json, jsonschema
-          
-          # Load schema
-          with open('schemas/minutes.schema.json', 'r') as f:
-              schema = json.load(f)
-          
-          # Load and validate sample data
-          with open('crawler/sample/sample_minutes.json', 'r') as f:
-              data = json.load(f)
-          
-          for record in data:
-              try:
-                  jsonschema.validate(record, schema)
-                  print('✅ Schema validation passed')
-                  break
-              except jsonschema.ValidationError as e:
-                  print(f'⚠️ Schema validation warning: {e.message}')
-          "
-        else
-          echo "⚠️ Skipping schema validation (no sample data)"
-        fi
+          python - <<'PY'
+import json
+from jsonschema import validate, ValidationError
+
+# スキーマのロード
+with open('schemas/minutes.schema.json', 'r', encoding='utf-8') as f:
+    schema = json.load(f)
+
+# サンプルデータのロード
+with open('crawler/sample/sample_minutes.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+# 1件でも検証して結果表示（必要なら全件に変更可）
+checked = 0
+for record in data:
+    try:
+        validate(instance=record, schema=schema)
+        print('✅ Schema validation passed for one record')
+        checked += 1
+        break
+    except ValidationError as e:
+        print('⚠️ Schema validation warning:', e.message)
+        raise
+if checked == 0:
+    print('⚠️ No records to validate')
+PY
+    else
+      echo "⚠️ Skipping schema validation (no sample data)"
+    fi
 
   security-scan:
     runs-on: ubuntu-latest
