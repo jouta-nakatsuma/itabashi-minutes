@@ -6,7 +6,7 @@ Japanese Text Normalization Scripts
 
 import re
 import unicodedata
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable, Tuple, Union
 import json
 
 
@@ -59,21 +59,25 @@ class JapaneseTextNormalizer:
     
     def normalize_quotes(self, text: str) -> str:
         """引用符の正規化"""
-        # 様々な引用符を統一
-        quote_patterns = [
-            (r'["""]', '"'),  # 英語引用符を統一
-            (r"[']", "'"),  # アポストロフィを統一
-            (r'[（）]', lambda m: '(' if m.group() == '（' else ')'),  # 全角括弧を半角に
+        # 置換の型: 文字列 or マッチ→文字列の関数
+        Replacement = Union[str, Callable[[re.Match[str]], str]]
+
+        # 全角括弧を半角にするコールバック
+        def _paren_replacer(m: re.Match[str]) -> str:
+            return '(' if m.group(0) == '（' else ')'
+
+        # 置換ルール（mypy が分かるように型注釈を付与）
+        quote_patterns: List[Tuple[str, Replacement]] = [
+            (r'["“”]', '"'),      # 英語/スマートクォートを "
+            (r"[’‘']", "'"),      # アポストロフィ/シングルクォートを '
+            (r'[（）]', _paren_replacer),  # 全角括弧→半角
         ]
-        
+
         for pattern, replacement in quote_patterns:
-            if callable(replacement):
-                text = re.sub(pattern, replacement, text)
-            else:
-                text = re.sub(pattern, replacement, text)
-        
+            text = re.sub(pattern, replacement, text)
+
         return text
-    
+        
     def extract_paragraphs(self, text: str) -> List[str]:
         """テキストから段落を抽出"""
         # 改行で分割して空でない行のみを返す
@@ -139,7 +143,7 @@ class JapaneseTextNormalizer:
         return normalized_record
 
 
-def main():
+def main() -> None:
     """メイン処理：サンプルデータの正規化"""
     normalizer = JapaneseTextNormalizer()
     
