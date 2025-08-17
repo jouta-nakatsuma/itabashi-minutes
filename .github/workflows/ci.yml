@@ -34,7 +34,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-ansi --without app
+        poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Lint with flake8
       run: |
@@ -56,7 +56,7 @@ jobs:
     needs: lint-and-type-check
     strategy:
       matrix:
-        python-version: [3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.9, "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-ansi --without app
+        poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Run unit tests
       run: |
@@ -112,7 +112,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-ansi
+        poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Create test environment config
       run: |
@@ -219,7 +219,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install -E app --no-interaction --no-ansi
+        poetry install --with app app --no-interaction --no-ansi
         pip install nbconvert
 
     - name: Test notebook execution (syntax only)
