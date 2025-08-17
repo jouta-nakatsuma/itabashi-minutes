@@ -73,15 +73,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
-        poetry --version
         poetry config virtualenvs.create false
-        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
-        poetry lock --no-interaction
-        # app グループを除外してインストール
-        poetry install --with dev --without app --no-interaction --no-ansi
-        # デバッグ: 解決木に streamlit が含まれていないか確認
-        echo "---- RESOLVED DEPENDENCY TREE ----"
-        poetry show --tree | sed -n '1,200p'
+        # dev のみを対象に lock
+        poetry lock --no-interaction --with dev --without app
+        # dev のみインストール
+        poetry install --no-interaction --no-ansi --with dev --without app
+        # 念のため streamlit が入っていないことを確認
+        poetry show streamlit || echo "streamlit not installed (expected)"
 
     - name: Run unit tests
       run: |
@@ -116,15 +114,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
-        poetry --version
         poetry config virtualenvs.create false
-        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
-        poetry lock --no-interaction
-        # app グループを除外してインストール
-        poetry install --with dev --without app --no-interaction --no-ansi
-        # デバッグ: 解決木に streamlit が含まれていないか確認
-        echo "---- RESOLVED DEPENDENCY TREE ----"
-        poetry show --tree | sed -n '1,200p'
+        # dev のみを対象に lock
+        poetry lock --no-interaction --with dev --without app
+        # dev のみインストール
+        poetry install --no-interaction --no-ansi --with dev --without app
+        # 念のため streamlit が入っていないことを確認
+        poetry show streamlit || echo "streamlit not installed (expected)"
 
     - name: Create test environment config
       run: |
@@ -226,19 +222,20 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y mecab mecab-ipadic-utf8 libmecab-dev
 
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install "poetry==1.8.3"
-        poetry --version
         poetry config virtualenvs.create false
-        # 重要: 現在の pyproject から lock を再生成（extras の残骸を消す）
-        poetry lock --no-interaction
-        # app グループを除外してインストール
-        poetry install --with dev --without app --no-interaction --no-ansi
-        # デバッグ: 解決木に streamlit が含まれていないか確認
-        echo "---- RESOLVED DEPENDENCY TREE ----"
-        poetry show --tree | sed -n '1,200p'
+        # app と dev を対象に lock
+        poetry lock --no-interaction --with app,dev
+        # app と dev をインストール
+        poetry install --no-interaction --no-ansi --with app,dev
         pip install nbconvert
 
     - name: Test notebook execution (syntax only)
