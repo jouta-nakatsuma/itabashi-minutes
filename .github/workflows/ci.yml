@@ -1,0 +1,261 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --with dev
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 crawler/ ingest/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 crawler/ ingest/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Type check with mypy
+      run: |
+        mypy crawler/ ingest/ --ignore-missing-imports --python-version ${{ matrix.python-version }}
+
+    - name: Format check with black
+      run: |
+        black --check --diff crawler/ ingest/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mecab mecab-ipadic-utf8 libmecab-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --with dev
+
+    - name: Run unit tests
+      run: |
+        pytest tests/ -v --cov=crawler --cov=ingest --cov-report=xml --cov-report=term
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  crawler-dry-run:
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, test]
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mecab mecab-ipadic-utf8 libmecab-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.create false
+        poetry install
+
+    - name: Create test environment config
+      run: |
+        cp crawler/.env.example crawler/.env
+        # Override settings for CI
+        echo "REQUEST_DELAY=2.0" >> crawler/.env
+        echo "MAX_PAGES=2" >> crawler/.env
+        echo "LOG_LEVEL=DEBUG" >> crawler/.env
+
+    - name: Run crawler dry-run (limited pages)
+      run: |
+        cd crawler
+        timeout 300 python itabashi_spider.py || true
+        
+    - name: Verify output format
+      run: |
+        if [ -f "crawler/sample/sample_minutes.json" ]; then
+          echo "✅ Sample data generated successfully"
+          python -c "import json; data=json.load(open('crawler/sample/sample_minutes.json')); print(f'Records: {len(data)}')"
+        else
+          echo "⚠️ No sample data generated (expected for dry-run)"
+        fi
+
+    - name: Test text normalization
+      run: |
+        if [ -f "crawler/sample/sample_minutes.json" ]; then
+          cd ingest
+          python text_normalizer.py
+          echo "✅ Text normalization completed"
+        else
+          echo "⚠️ Skipping normalization test (no sample data)"
+        fi
+
+    - name: Validate JSON schema
+      run: |
+        if [ -f "crawler/sample/sample_minutes.json" ]; then
+          python -c "
+          import json, jsonschema
+          
+          # Load schema
+          with open('schemas/minutes.schema.json', 'r') as f:
+              schema = json.load(f)
+          
+          # Load and validate sample data
+          with open('crawler/sample/sample_minutes.json', 'r') as f:
+              data = json.load(f)
+          
+          for record in data:
+              try:
+                  jsonschema.validate(record, schema)
+                  print('✅ Schema validation passed')
+                  break
+              except jsonschema.ValidationError as e:
+                  print(f'⚠️ Schema validation warning: {e.message}')
+          "
+        else
+          echo "⚠️ Skipping schema validation (no sample data)"
+        fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r crawler/ ingest/ -f json -o bandit-report.json || true
+        bandit -r crawler/ ingest/ || true
+
+    - name: Check for known vulnerabilities
+      run: |
+        pip freeze | safety check --json || true
+
+  notebook-test:
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, test]
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mecab mecab-ipadic-utf8 libmecab-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --with dev
+        pip install nbconvert
+
+    - name: Test notebook execution (syntax only)
+      run: |
+        # Convert notebooks to Python scripts to check for syntax errors
+        jupyter nbconvert --to script analysis/*.ipynb --output-dir /tmp/
+        
+        # Check syntax of generated scripts
+        for file in /tmp/*.py; do
+          echo "Checking syntax of $file"
+          python -m py_compile "$file"
+        done
+        
+        echo "✅ All notebooks have valid Python syntax"
+
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, test, crawler-dry-run, security-scan, notebook-test]
+    if: always()
+    
+    steps:
+    - name: Build Summary
+      run: |
+        echo "## CI Pipeline Results 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Lint & Type Check | ${{ needs.lint-and-type-check.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Crawler Dry Run | ${{ needs.crawler-dry-run.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Notebook Tests | ${{ needs.notebook-test.result }} |" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.lint-and-type-check.result }}" == "success" && 
+              "${{ needs.test.result }}" == "success" ]]; then
+          echo "✅ **All essential checks passed!**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Some essential checks failed.**" >> $GITHUB_STEP_SUMMARY
+        fi

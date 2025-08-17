@@ -1,0 +1,227 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/itabashi-minutes.schema.json",
+  "title": "Itabashi Ward Council Minutes Record",
+  "description": "Schema for normalized council minutes records from Itabashi Ward",
+  "type": "object",
+  "required": [
+    "meeting_date",
+    "committee",
+    "title",
+    "page_url",
+    "crawled_at"
+  ],
+  "properties": {
+    "meeting_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Meeting date in YYYY-MM-DD format",
+      "example": "2024-03-15"
+    },
+    "committee": {
+      "type": "string",
+      "description": "Committee or council type",
+      "enum": [
+        "本会議",
+        "常任委員会", 
+        "特別委員会",
+        "その他"
+      ],
+      "example": "本会議"
+    },
+    "title": {
+      "type": "string",
+      "description": "Meeting title or session name",
+      "minLength": 1,
+      "maxLength": 500,
+      "example": "令和6年第1回定例会"
+    },
+    "page_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL of the original web page",
+      "example": "https://www.city.itabashi.tokyo.jp/gikai/kaigiroku/..."
+    },
+    "pdf_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL of the PDF version if available",
+      "example": "https://www.city.itabashi.tokyo.jp/documents/..."
+    },
+    "agenda_items": {
+      "type": "array",
+      "description": "List of agenda items and speeches from the meeting",
+      "items": {
+        "type": "object",
+        "required": [
+          "agenda_item",
+          "speaker",
+          "speech_text"
+        ],
+        "properties": {
+          "agenda_item": {
+            "type": "string",
+            "description": "Agenda item title or topic",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "令和6年度予算について"
+          },
+          "speaker": {
+            "type": "string",
+            "description": "Name or role of the speaker",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "田中議員"
+          },
+          "speech_text": {
+            "type": "string",
+            "description": "Full text of the speech or statement",
+            "minLength": 1,
+            "example": "議長、質問いたします。令和6年度の予算案についてお伺いします..."
+          },
+          "page_no": {
+            "type": ["integer", "null"],
+            "description": "Page number in the original document",
+            "minimum": 1,
+            "example": 5
+          },
+          "paragraphs": {
+            "type": "array",
+            "description": "Speech text split into paragraphs",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": [
+              "議長、質問いたします。",
+              "令和6年度の予算案についてお伺いします。"
+            ]
+          },
+          "speech_order": {
+            "type": ["integer", "null"],
+            "description": "Order of speech in the meeting",
+            "minimum": 1,
+            "example": 3
+          },
+          "speech_type": {
+            "type": ["string", "null"],
+            "description": "Type of speech",
+            "enum": [
+              "質問",
+              "答弁", 
+              "討論",
+              "報告",
+              "その他",
+              null
+            ],
+            "example": "質問"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meeting_type": {
+      "type": ["string", "null"],
+      "description": "Type of meeting session",
+      "enum": [
+        "定例会",
+        "臨時会",
+        "委員会",
+        "その他",
+        null
+      ],
+      "example": "定例会"
+    },
+    "fiscal_year": {
+      "type": ["integer", "null"],
+      "description": "Fiscal year of the meeting",
+      "minimum": 1990,
+      "maximum": 2050,
+      "example": 2024
+    },
+    "session_number": {
+      "type": ["integer", "null"],
+      "description": "Session number within the fiscal year",
+      "minimum": 1,
+      "example": 1
+    },
+    "crawled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the record was crawled",
+      "example": "2024-03-20T10:30:00Z"
+    },
+    "processed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Timestamp when the record was normalized/processed",
+      "example": "2024-03-20T11:00:00Z"
+    },
+    "source_encoding": {
+      "type": ["string", "null"],
+      "description": "Original character encoding of the source",
+      "example": "UTF-8"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata about the record",
+      "properties": {
+        "total_speeches": {
+          "type": "integer",
+          "description": "Total number of speeches in the meeting",
+          "minimum": 0
+        },
+        "total_pages": {
+          "type": ["integer", "null"],
+          "description": "Total number of pages in the original document",
+          "minimum": 1
+        },
+        "word_count": {
+          "type": ["integer", "null"],
+          "description": "Approximate word count of the meeting",
+          "minimum": 0
+        },
+        "duration_minutes": {
+          "type": ["integer", "null"],
+          "description": "Meeting duration in minutes if available",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "meeting_date": "2024-03-15",
+      "committee": "本会議",
+      "title": "令和6年第1回定例会第3日",
+      "page_url": "https://www.city.itabashi.tokyo.jp/gikai/kaigiroku/r06/240315.html",
+      "pdf_url": "https://www.city.itabashi.tokyo.jp/documents/240315.pdf",
+      "agenda_items": [
+        {
+          "agenda_item": "令和6年度予算について",
+          "speaker": "田中議員",
+          "speech_text": "議長、質問いたします。令和6年度の予算案についてお伺いします。",
+          "page_no": 5,
+          "paragraphs": [
+            "議長、質問いたします。",
+            "令和6年度の予算案についてお伺いします。"
+          ],
+          "speech_order": 1,
+          "speech_type": "質問"
+        }
+      ],
+      "meeting_type": "定例会",
+      "fiscal_year": 2024,
+      "session_number": 1,
+      "crawled_at": "2024-03-20T10:30:00Z",
+      "processed_at": "2024-03-20T11:00:00Z",
+      "metadata": {
+        "total_speeches": 25,
+        "total_pages": 120,
+        "word_count": 15000
+      }
+    }
+  ]
+}
