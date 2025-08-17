@@ -30,7 +30,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.9,<4.0"
 requests = "^2.31.0"
 beautifulsoup4 = "^4.12.2"
 lxml = "^4.9.3"
@@ -44,6 +44,7 @@ mecab-python3 = "^1.0.8"
 wordcloud = "^1.9.2"
 jsonschema = "^4.19.0"
 python-dotenv = "^1.0.0"
+streamlit = { version = ">=1.28,<2.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -60,7 +61,9 @@ nbconvert = "^7.7.3"
 [tool.poetry.group.analysis.dependencies]
 plotly = "^5.15.0"
 dash = "^2.12.1"
-streamlit = "^1.25.0"
+
+[tool.poetry.extras]
+app = ["streamlit"]
 
 [build-system]
 requires = ["poetry-core"]
