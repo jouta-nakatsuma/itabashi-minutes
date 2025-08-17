@@ -44,7 +44,12 @@ mecab-python3 = "^1.0.8"
 wordcloud = "^1.9.2"
 jsonschema = "^4.19.0"
 python-dotenv = "^1.0.0"
-streamlit = { version = ">=1.28,<2.0", optional = true }
+
+[tool.poetry.group.app]
+optional = true
+
+[tool.poetry.group.app.dependencies]
+streamlit = ">=1.28,<2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -62,9 +67,6 @@ nbconvert = "^7.7.3"
 plotly = "^5.15.0"
 dash = "^2.12.1"
 
-[tool.poetry.extras]
-app = ["streamlit"]
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
@@ -75,16 +77,10 @@ itabashi-normalizer = "ingest.text_normalizer:main"
 
 [tool.black]
 line-length = 88
-target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
-extend-exclude = '''
-# A regex preceded by ^/ will apply only to files and directories
-# in the root of the project.
-^/docs/.*\.py$
-'''
+target-version = ['py39', 'py310', 'py311']
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
