@@ -36,7 +36,7 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --no-interaction
+        poetry lock --only main,dev --no-interaction
         # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
@@ -82,7 +82,7 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --no-interaction
+        poetry lock --only main,dev --no-interaction
         # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
@@ -122,7 +122,7 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --no-interaction
+        poetry lock --only main,dev --no-interaction
         # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
@@ -231,6 +231,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
+        rm -f poetry.lock
+        poetry lock --with app --no-interaction
         poetry install --with app --no-interaction --no-ansi
         pip install nbconvert
 
