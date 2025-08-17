@@ -20,14 +20,17 @@ logger = logging.getLogger(__name__)
 
 
 class ItabashiMinutesCrawler:
-    def __init__(self, base_url: str = "https://www.city.itabashi.tokyo.jp",
-                 request_delay: float = 1.0) -> None:
+    def __init__(
+        self,
+        base_url: str = "https://www.city.itabashi.tokyo.jp",
+        request_delay: float = 1.0,
+    ) -> None:
         self.base_url = base_url
         self.request_delay = request_delay
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ItabashiMinutesCrawler/1.0 (Research Purpose)'
-        })
+        self.session.headers.update(
+            {"User-Agent": "ItabashiMinutesCrawler/1.0 (Research Purpose)"}
+        )
 
     def _make_request(self, url: str) -> Optional[requests.Response]:
         """Make HTTP request with rate limiting and error handling"""
@@ -48,18 +51,20 @@ class ItabashiMinutesCrawler:
         if not response:
             return []
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
         minutes_data: List[Dict[str, Any]] = []
 
         # Find meeting links (placeholder implementation)
-        meeting_links = soup.find_all('a', href=True)
+        meeting_links = soup.find_all("a", href=True)
         for link in meeting_links[:5]:  # Limit to first 5 for demo
-            href: Optional[str] = link.get('href')
+            href: Optional[str] = link.get("href")
             if not href:
                 continue
-            if 'kaigiroku' in href.lower():
+            if "kaigiroku" in href.lower():
                 full_url = urljoin(self.base_url, href)
-                minute_data = self._extract_minute_data(full_url, link.get_text().strip())
+                minute_data = self._extract_minute_data(
+                    full_url, link.get_text().strip()
+                )
                 if minute_data is not None:
                     minutes_data.append(minute_data)
 
@@ -71,7 +76,7 @@ class ItabashiMinutesCrawler:
         if not response:
             return None
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
 
         minute_data: Dict[str, Any] = {
             "meeting_date": self._extract_date(title, soup),
@@ -88,7 +93,8 @@ class ItabashiMinutesCrawler:
     def _extract_date(self, title: str, soup: BeautifulSoup) -> Optional[str]:
         """Extract meeting date from title or page content"""
         import re
-        date_pattern = r'(\d{4})年(\d{1,2})月(\d{1,2})日'
+
+        date_pattern = r"(\d{4})年(\d{1,2})月(\d{1,2})日"
         match = re.search(date_pattern, title)
         if match:
             year, month, day = match.groups()
@@ -107,10 +113,10 @@ class ItabashiMinutesCrawler:
 
     def _find_pdf_url(self, soup: BeautifulSoup, base_url: str) -> Optional[str]:
         """Find PDF download URL"""
-        pdf_links = soup.find_all('a', href=lambda x: bool(x and x.endswith('.pdf')))
+        pdf_links = soup.find_all("a", href=lambda x: bool(x and x.endswith(".pdf")))
         if pdf_links:
             # Tag['href'] は Any 扱いになるので明示キャスト
-            href = cast(str, pdf_links[0]['href'])
+            href = cast(str, pdf_links[0]["href"])
             return urljoin(base_url, href)
         return None
 
@@ -119,7 +125,9 @@ class ItabashiMinutesCrawler:
         agenda_items: List[Dict[str, Any]] = []
 
         # This is a simplified extraction - real implementation would be more complex
-        content_divs = soup.find_all(['div', 'section'], class_=lambda x: bool(x and 'content' in x))
+        content_divs = soup.find_all(
+            ["div", "section"], class_=lambda x: bool(x and "content" in x)
+        )
 
         for i, div in enumerate(content_divs[:3]):  # Limit for demo
             text_content = div.get_text().strip()
@@ -145,7 +153,7 @@ def main() -> None:
     output_file = "crawler/sample/sample_minutes.json"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(minutes, f, ensure_ascii=False, indent=2)
 
     logger.info(f"Crawled {len(minutes)} minutes. Output saved to {output_file}")
