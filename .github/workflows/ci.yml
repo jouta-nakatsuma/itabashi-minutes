@@ -36,9 +36,8 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --only main,dev --no-interaction
-        # これで streamlit は app グループにのみ存在するロックへ
-        poetry install --only main,dev --no-interaction --no-ansi
+        poetry lock --with dev --without app --no-interaction
+        poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Lint with flake8
       run: |
@@ -82,9 +81,8 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --only main,dev --no-interaction
-        # これで streamlit は app グループにのみ存在するロックへ
-        poetry install --only main,dev --no-interaction --no-ansi
+        poetry lock --with dev --without app --no-interaction
+        poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Run unit tests
       run: |
@@ -122,10 +120,9 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --only main,dev --no-interaction
-        # これで streamlit は app グループにのみ存在するロックへ
-        poetry install --only main,dev --no-interaction --no-ansi
-
+        poetry lock --with dev --without app --no-interaction
+        poetry install --with dev --without app --no-interaction --no-ansi
+        
     - name: Create test environment config
       run: |
         cp crawler/.env.example crawler/.env
