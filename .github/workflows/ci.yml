@@ -34,7 +34,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-ansi
+        poetry install --no-interaction --no-ansi --without app
 
     - name: Lint with flake8
       run: |
@@ -76,7 +76,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-ansi
+        poetry install --no-interaction --no-ansi --without app
 
     - name: Run unit tests
       run: |
