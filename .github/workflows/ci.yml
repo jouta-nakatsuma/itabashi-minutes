@@ -36,7 +36,7 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --with dev --without app --no-interaction
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Lint with flake8
@@ -81,7 +81,7 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --with dev --without app --no-interaction
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Run unit tests
@@ -120,9 +120,9 @@ jobs:
         poetry config virtualenvs.create false
         # ✨ 追加：ロックをpyprojectに同期させる
         rm -f poetry.lock
-        poetry lock --with dev --without app --no-interaction
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
-        
+
     - name: Create test environment config
       run: |
         cp crawler/.env.example crawler/.env
@@ -229,7 +229,7 @@ jobs:
         pip install poetry
         poetry config virtualenvs.create false
         rm -f poetry.lock
-        poetry lock --with app --no-interaction
+        poetry lock --no-interaction
         poetry install --with app --no-interaction --no-ansi
         pip install nbconvert
 
