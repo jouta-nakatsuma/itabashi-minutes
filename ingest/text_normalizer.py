@@ -13,7 +13,7 @@ import json
 class JapaneseTextNormalizer:
     """日本語テキストの正規化を行うクラス"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         # 全角英数字から半角英数字への変換テーブル
         self.zenkaku_to_hankaku = str.maketrans(
             '０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ',
