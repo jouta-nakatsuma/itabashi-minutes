@@ -33,7 +33,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install mypy flake8 black types-requests
-        
+
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names
@@ -72,8 +72,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install "poetry==1.8.3"
+        poetry --version
         poetry config virtualenvs.create false
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Run unit tests
@@ -108,8 +110,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install "poetry==1.8.3"
+        poetry --version
         poetry config virtualenvs.create false
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
 
     - name: Create test environment config
@@ -215,8 +219,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install "poetry==1.8.3"
+        poetry --version
         poetry config virtualenvs.create false
+        poetry lock --no-interaction
         poetry install --with dev --without app --no-interaction --no-ansi
         pip install nbconvert
 
