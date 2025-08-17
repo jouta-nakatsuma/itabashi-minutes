@@ -34,6 +34,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
+        # ✨ 追加：ロックをpyprojectに同期させる
+        rm -f poetry.lock
+        poetry lock --no-interaction --no-update
+        # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Lint with flake8
@@ -76,6 +80,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
+        # ✨ 追加：ロックをpyprojectに同期させる
+        rm -f poetry.lock
+        poetry lock --no-interaction --no-update
+        # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Run unit tests
@@ -112,6 +120,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry config virtualenvs.create false
+        # ✨ 追加：ロックをpyprojectに同期させる
+        rm -f poetry.lock
+        poetry lock --no-interaction --no-update
+        # これで streamlit は app グループにのみ存在するロックへ
         poetry install --only main,dev --no-interaction --no-ansi
 
     - name: Create test environment config
