@@ -62,7 +62,7 @@ class JapaneseTextNormalizer:
         # 様々な引用符を統一
         quote_patterns = [
             (r'["""]', '"'),  # 英語引用符を統一
-            (r'[''']', "'"),  # アポストロフィを統一
+            (r"[']", "'"),  # アポストロフィを統一
             (r'[（）]', lambda m: '(' if m.group() == '（' else ')'),  # 全角括弧を半角に
         ]
         
