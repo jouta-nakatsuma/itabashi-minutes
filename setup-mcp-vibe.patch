@@ -1,0 +1,232 @@
+```diff
+*** Begin Patch
+*** Add File: .github/ISSUE_TEMPLATE/feature.yml
++name: Feature / Task
++description: DoR/DoD 付きの実装タスク（VIBE-KANBAN→Codex CLI 連携向け）
++title: "[feature] <scope>: <short title>"
++labels: ["Ready", "priority-mid"]
++body:
++  - type: textarea
++    id: background
++    attributes:
++      label: 背景 / Context
++      description: なぜ必要か。関連リンク（仕様書・議事録URLなど）
++    validations:
++      required: true
++  - type: textarea
++    id: dor
++    attributes:
++      label: DoR（着手条件）
++      description: 前提・スコープ・非目標・テスト観点の素案
++      value: |
++        - 前提:
++        - スコープ:
++        - 非目標:
++        - 受入観点(案):
++    validations:
++      required: true
++  - type: textarea
++    id: spec
++    attributes:
++      label: 仕様 / 受入観点(DoD)
++      description: 完了の姿。確認コマンド、期待ログ、成果物パスまで明記
++      value: |
++        - 実装概要:
++        - 確認コマンド:
++        - 期待ログ/出力:
++        - 成果物パス:
++        - DoD チェックリスト:
++    validations:
++      required: true
++  - type: dropdown
++    id: priority
++    attributes:
++      label: 優先度
++      options:
++        - priority-high
++        - priority-mid
++        - priority-low
++    validations:
++      required: true
++  - type: input
++    id: estimate
++    attributes:
++      label: 見積（h）
++      placeholder: "例: 4"
++
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: .github/pull_request_template.md
++## 概要
++- 変更点:
++- 関連Issue: #
++
++## テスト
++- コマンド:
++- 期待結果:
++
++## 影響範囲 / リスク / ロールバック
++- 影響範囲:
++- リスク:
++- ロールバック手順:
++
++## チェックリスト（DoD）
++- [ ] CI green（lint/format/mypy/pytest）
++- [ ] スキーマ互換性チェックに合格（破壊変更なし）
++- [ ] ドキュメント/サンプル更新
++
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: .github/workflows/nightly.yml
++name: Nightly Crawler
++on:
++  schedule:
++    - cron: '30 18 * * *' # JST 03:30 相当（UTC 18:30）
++  workflow_dispatch: {}
++
++jobs:
++  crawl-and-validate:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-python@v5
++        with:
++          python-version: '3.11'
++      - name: Install deps
++        run: |
++          pip install --upgrade pip
++          pip install poetry
++          poetry install --no-interaction --no-root
++      - name: Run crawler (demo)
++        run: |
++          poetry run python crawler/itabashi_spider.py || true
++      - name: Validate schema (if any)
++        run: |
++          if [ -f schemas/minutes.schema.json ] && [ -f crawler/sample/sample_minutes.json ]; then
++            poetry run python - <<'PY'
++import json,sys
++from jsonschema import validate
++schema=json.load(open('schemas/minutes.schema.json'))
++data=json.load(open('crawler/sample/sample_minutes.json'))
++for item in (data if isinstance(data,list) else [data]):
++    validate(item, schema)
++print('schema validation ok')
++PY
++          fi
++
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: .mcp/tools/github-issues.schema.json
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "github-issues",
++  "type": "object",
++  "properties": {
++    "issues.create": {
++      "type": "object",
++      "properties": {
++        "title": {"type": "string"},
++        "body": {"type": "string"},
++        "labels": {"type": "array", "items": {"type": "string"}},
++        "assignees": {"type": "array", "items": {"type": "string"}}
++      },
++      "required": ["title"]
++    },
++    "issues.update": {
++      "type": "object",
++      "properties": {
++        "number": {"type": "integer"},
++        "title": {"type": "string"},
++        "body": {"type": "string"},
++        "state": {"type": "string", "enum": ["open","closed"]},
++        "labels": {"type": "array", "items": {"type": "string"}}
++      },
++      "required": ["number"]
++    }
++  }
++}
++
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: .mcp/tools/repo-ops.schema.json
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "repo-ops",
++  "type": "object",
++  "properties": {
++    "repo.read": {
++      "type": "object",
++      "properties": {"path": {"type": "string"}},
++      "required": ["path"]
++    },
++    "repo.write": {
++      "type": "object",
++      "properties": {
++        "path": {"type": "string"},
++        "content": {"type": "string"}
++      },
++      "required": ["path","content"]
++    }
++  }
++}
++
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: .mcp/tools/quality-gates.schema.json
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "title": "quality-gates",
++  "type": "object",
++  "properties": {
++    "quality.check_dor": {"type": "object", "properties": {"issue": {"type": "integer"}}, "required": ["issue"]},
++    "quality.check_dod": {"type": "object", "properties": {"pr": {"type": "integer"}}, "required": ["pr"]}
++  }
++}
++
+*** End Patch
+```
+
+---
+
+## B. ラベル作成（gh CLI / 既存はスキップ）
+> 事前に `gh auth login` 済みであること。
+```bash
+# 名前 / 色(HEX) / 説明
+labels=(
+  "crawler,#1d76db,クローラ関連"
+  "ingest,#0e8a16,取込・正規化"
+  "schema,#fbca04,スキーマ定義"
+  "test,#5319e7,テスト"
+  "ci,#bfd4f2,CI/CD"
+  "api,#0052cc,API/MCP"
+  "ui,#c2e0c6,UI/可視化"
+  "mcp,#5319e7,MCP連携"
+  "priority-high,#d73a4a,優先度高"
+  "priority-mid,#f9d0c4,優先度中"
+  "priority-low,#fef2c0,優先度低"
+  "Ready,#0e8a16,着手可能"
+  "Blocked,#b60205,ブロック中"
+  "Need-Info,#fec1c1,情報待ち"
+  "sprint-1,#1d76db,Sprint 1"
+)
+for item in "${labels[@]}"; do
+  IFS=',' read -r name color desc <<<"$item"
+  gh label create "$name" --color "${color#\#}" --description "$desc" 2>/dev/null || \
+  gh label edit   "$name" --color "${color#\#}" --description "$desc"
+done
+```
