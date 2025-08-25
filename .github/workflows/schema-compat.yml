@@ -22,12 +22,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest jsonschema
 
-      - name: Run unit tests
-        run: pytest -q
+      # Schema専用の最小テストだけを実行（他のテストは通常のCIで走る）
+      - name: Run schema unit test
+        run: pytest -q tests/test_schema_required.py
 
       - name: Check schema compatibility
         run: |
           python tools/check_schema_compat.py \
             --base "${{ github.base_ref }}" \
             --path "schemas/minutes.schema.json"
-
