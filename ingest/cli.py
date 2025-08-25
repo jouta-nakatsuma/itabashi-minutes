@@ -19,9 +19,9 @@ def _collect_inputs(single: str | None, pattern: str | None) -> List[str]:
     return sorted(_glob.glob(pattern or "", recursive=True))
 
 
-def main() -> None:
+def main(argv: List[str] | None = None) -> int:
     # Basic logging setup (optional)
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Itabashi Minutes PDF Ingest CLI")
     parser.add_argument("--input", help="Single PDF file path")
     parser.add_argument("--glob", help="Glob pattern to match multiple PDFs (e.g., 'data/**/*.pdf')")
@@ -40,7 +40,7 @@ def main() -> None:
         default="INFO",
         help="Logging level",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     logging.getLogger().setLevel(getattr(logging, args.log_level.upper(), logging.INFO))
 
     inputs = _collect_inputs(args.input, args.glob)
@@ -66,7 +66,7 @@ def main() -> None:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(out_obj, f, ensure_ascii=False, indent=2)
 
+    return 0
 
 if __name__ == "__main__":
-    main()
-
+    raise SystemExit(main())
