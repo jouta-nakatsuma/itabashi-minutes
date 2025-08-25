@@ -22,12 +22,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest jsonschema
 
-      # Schema専用の最小テストだけを実行（他のテストは通常のCIで走る）
+      # Schema専用の最小テストだけを実行（他のテストは通常CIで走る）
       - name: Run schema unit test
         run: pytest -q tests/test_schema_required.py
+
+      # ベースブランチを取得（origin/<base_ref> をローカルに作る）
+      - name: Fetch base branch
+        run: |
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
 
       - name: Check schema compatibility
         run: |
           python tools/check_schema_compat.py \
-            --base "${{ github.base_ref }}" \
+            --base "origin/${{ github.base_ref }}" \
             --path "schemas/minutes.schema.json"
