@@ -1,10 +1,9 @@
-```diff
 *** Begin Patch
 *** Add File: .github/ISSUE_TEMPLATE/feature.yml
 +name: Feature / Task
 +description: DoR/DoD 付きの実装タスク（VIBE-KANBAN→Codex CLI 連携向け）
 +title: "[feature] <scope>: <short title>"
-+labels: ["Ready", "priority-mid"]
++labels: ["Ready", "priority-mid", "sprint-1"]
 +body:
 +  - type: textarea
 +    id: background
@@ -55,9 +54,6 @@
 +      placeholder: "例: 4"
 +
 *** End Patch
-```
-
-```diff
 *** Begin Patch
 *** Add File: .github/pull_request_template.md
 +## 概要
@@ -76,12 +72,10 @@
 +## チェックリスト（DoD）
 +- [ ] CI green（lint/format/mypy/pytest）
 +- [ ] スキーマ互換性チェックに合格（破壊変更なし）
++- [ ] ラベル確認（例: sprint-1 / 種別ラベル）
 +- [ ] ドキュメント/サンプル更新
 +
 *** End Patch
-```
-
-```diff
 *** Begin Patch
 *** Add File: .github/workflows/nightly.yml
 +name: Nightly Crawler
@@ -93,14 +87,17 @@
 +jobs:
 +  crawl-and-validate:
 +    runs-on: ubuntu-latest
++    strategy:
++      matrix:
++        python-version: [3.9, '3.10', '3.11']
 +    steps:
 +      - uses: actions/checkout@v4
 +      - uses: actions/setup-python@v5
 +        with:
-+          python-version: '3.11'
++          python-version: ${{ matrix.python-version }}
 +      - name: Install deps
 +        run: |
-+          pip install --upgrade pip
++          python -m pip install --upgrade pip
 +          pip install poetry
 +          poetry install --no-interaction --no-root
 +      - name: Run crawler (demo)
@@ -110,20 +107,18 @@
 +        run: |
 +          if [ -f schemas/minutes.schema.json ] && [ -f crawler/sample/sample_minutes.json ]; then
 +            poetry run python - <<'PY'
-+import json,sys
++import json
 +from jsonschema import validate
 +schema=json.load(open('schemas/minutes.schema.json'))
 +data=json.load(open('crawler/sample/sample_minutes.json'))
-+for item in (data if isinstance(data,list) else [data]):
++items = data if isinstance(data, list) else [data]
++for item in items:
 +    validate(item, schema)
 +print('schema validation ok')
 +PY
 +          fi
 +
 *** End Patch
-```
-
-```diff
 *** Begin Patch
 *** Add File: .mcp/tools/github-issues.schema.json
 +{
@@ -134,31 +129,38 @@
 +    "issues.create": {
 +      "type": "object",
 +      "properties": {
-+        "title": {"type": "string"},
-+        "body": {"type": "string"},
-+        "labels": {"type": "array", "items": {"type": "string"}},
-+        "assignees": {"type": "array", "items": {"type": "string"}}
++        "title": { "type": "string" },
++        "body": { "type": "string" },
++        "labels": { "type": "array", "items": { "type": "string" } },
++        "assignees": { "type": "array", "items": { "type": "string" } },
++        "project": { "type": "string" },
++        "estimate": { "type": ["number","string"] }
 +      },
 +      "required": ["title"]
 +    },
 +    "issues.update": {
 +      "type": "object",
 +      "properties": {
-+        "number": {"type": "integer"},
-+        "title": {"type": "string"},
-+        "body": {"type": "string"},
-+        "state": {"type": "string", "enum": ["open","closed"]},
-+        "labels": {"type": "array", "items": {"type": "string"}}
++        "number": { "type": "integer" },
++        "title": { "type": "string" },
++        "body": { "type": "string" },
++        "state": { "type": "string", "enum": ["open","closed"] },
++        "labels": { "type": "array", "items": { "type": "string" } }
 +      },
 +      "required": ["number"]
++    },
++    "issues.link_pr": {
++      "type": "object",
++      "properties": {
++        "issue": { "type": "integer" },
++        "pr": { "type": "integer" }
++      },
++      "required": ["issue","pr"]
 +    }
 +  }
 +}
 +
 *** End Patch
-```
-
-```diff
 *** Begin Patch
 *** Add File: .mcp/tools/repo-ops.schema.json
 +{
@@ -168,14 +170,19 @@
 +  "properties": {
 +    "repo.read": {
 +      "type": "object",
-+      "properties": {"path": {"type": "string"}},
++      "properties": { "path": { "type": "string" } },
 +      "required": ["path"]
 +    },
 +    "repo.write": {
 +      "type": "object",
 +      "properties": {
-+        "path": {"type": "string"},
-+        "content": {"type": "string"}
++        "path": { "type": "string" },
++        "content": { "type": "string" },
++        "mode": {
++          "type": "string",
++          "enum": ["overwrite", "append", "create-if-missing", "fail-if-exists"]
++        },
++        "dryRun": { "type": "boolean", "default": false }
 +      },
 +      "required": ["path","content"]
 +    }
@@ -183,9 +190,6 @@
 +}
 +
 *** End Patch
-```
-
-```diff
 *** Begin Patch
 *** Add File: .mcp/tools/quality-gates.schema.json
 +{
@@ -193,40 +197,33 @@
 +  "title": "quality-gates",
 +  "type": "object",
 +  "properties": {
-+    "quality.check_dor": {"type": "object", "properties": {"issue": {"type": "integer"}}, "required": ["issue"]},
-+    "quality.check_dod": {"type": "object", "properties": {"pr": {"type": "integer"}}, "required": ["pr"]}
++    "quality.check_dor": {
++      "type": "object",
++      "properties": { "issue": { "type": "integer" } },
++      "required": ["issue"]
++    },
++    "quality.check_dod": {
++      "type": "object",
++      "properties": { "pr": { "type": "integer" } },
++      "required": ["pr"]
++    },
++    "quality.lint": {
++      "type": "object",
++      "properties": {
++        "paths": { "type": "array", "items": { "type": "string" } },
++        "strict": { "type": "boolean", "default": true }
++      },
++      "required": ["paths"]
++    },
++    "quality.schema_validate": {
++      "type": "object",
++      "properties": {
++        "schema": { "type": "string" },
++        "data": { "type": "string" }
++      },
++      "required": ["schema","data"]
++    }
 +  }
 +}
 +
 *** End Patch
-```
-
----
-
-## B. ラベル作成（gh CLI / 既存はスキップ）
-> 事前に `gh auth login` 済みであること。
-```bash
-# 名前 / 色(HEX) / 説明
-labels=(
-  "crawler,#1d76db,クローラ関連"
-  "ingest,#0e8a16,取込・正規化"
-  "schema,#fbca04,スキーマ定義"
-  "test,#5319e7,テスト"
-  "ci,#bfd4f2,CI/CD"
-  "api,#0052cc,API/MCP"
-  "ui,#c2e0c6,UI/可視化"
-  "mcp,#5319e7,MCP連携"
-  "priority-high,#d73a4a,優先度高"
-  "priority-mid,#f9d0c4,優先度中"
-  "priority-low,#fef2c0,優先度低"
-  "Ready,#0e8a16,着手可能"
-  "Blocked,#b60205,ブロック中"
-  "Need-Info,#fec1c1,情報待ち"
-  "sprint-1,#1d76db,Sprint 1"
-)
-for item in "${labels[@]}"; do
-  IFS=',' read -r name color desc <<<"$item"
-  gh label create "$name" --color "${color#\#}" --description "$desc" 2>/dev/null || \
-  gh label edit   "$name" --color "${color#\#}" --description "$desc"
-done
-```
