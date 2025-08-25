@@ -30,3 +30,6 @@
 - スキーマ互換性OK
 - README/usage更新
 - 各Issueの最後に、確認コマンド・期待ログ・成果物パスをIssueコメントへ残す。
+
+# Execution Policy (Override)
+- Do NOT use any Kanban or VIBE boards. Task source is GitHub Issues only for repo: jouta-nakatsuma/itabashi-minutes. Pick from open issues with labels [Ready, sprint-1], or proceed with an explicitly specified issue ID when provided.

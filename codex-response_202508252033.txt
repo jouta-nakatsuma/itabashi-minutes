@@ -1,0 +1,669 @@
+codex
+以下、追加要件を反映した計画のテキスト提示です（まだ書込みは行いません）。
+
+1) 変更ファイル一覧（短い説明）
+- crawler/config.py: 環境変数/既定値を集約する設定ローダ（ALLOW/DENY正規表現、タ
+イムアウト、バックオフ、制限値、UA、LOGなど）。
+- crawler/itabashi_spider.py: 既存クローラの強化版。robots.txt順守、許可リストUR
+L判定、相対URLの絶対化、重複/循環防止、指数バックオフ＋Retry-After、meeting_id生
+成を実装。既存mainはCLIへ委譲して後方互換維持。
+- crawler/cli.py: CLIエントリ。--max-pages, --max-items, --validate, --log-level
+, --dry-run, --ndjson対応。JSON/NDJSON出力とスキーマ検証を制御。
+- tests/test_crawler_minimum.py: responsesベースのHTTPスタブによる最小テスト（42
+9 Retry-After 有/無、ページング停止、重複除外、バックオフ上限制約、スキーマ最小
+検証）。responses未導入時はskip。
+- README.md: セットアップ、環境変数、CLI利用方法、検証手順、注意点を簡潔に追記。
+
+2) 実行・検証手順
+- 依存導入: poetry install --only main,dev
+- 型/品質（任意）: poetry run flake8 crawler ingest && poetry run mypy crawler i
+ngest
+- テスト: poetry run pytest -q
+- クローラ実行:
+  - 既存エントリ維持: poetry run itabashi-crawler（pyproject更新後）
+  - 互換起動（即時可）: poetry run python -m crawler.cli --max-pages 2 --max-ite
+ms 3 --validate
+- 出力確認: cat crawler/sample/sample_minutes.json && wc -l crawler/sample/sampl
+e_minutes.ndjson
+
+3) 最小実装の unified diff（テキストのみ、適用はまだ行いません）
+
+--- /dev/null
++++ b/crawler/config.py
+@@
++from __future__ import annotations
++import os
++import re
++from dataclasses import dataclass
++from typing import List
++from dotenv import load_dotenv
++
++load_dotenv()
++
++@dataclass
++class Config:
++    base_url: str = os.getenv("BASE_URL", "https://www.city.itabashi.tokyo.jp")
++    request_delay: float = float(os.getenv("REQUEST_DELAY", "1.0"))
++    timeout_connect: float = float(os.getenv("TIMEOUT_CONNECT", "10"))
++    timeout_read: float = float(os.getenv("TIMEOUT_READ", "30"))
++    retries: int = int(os.getenv("RETRIES", "3"))
++    backoff_base: float = float(os.getenv("BACKOFF_BASE", "1.0"))
++    backoff_max: float = float(os.getenv("BACKOFF_MAX", "30.0"))
++    max_pages: int = int(os.getenv("MAX_PAGES", "2"))
++    max_items: int = int(os.getenv("MAX_ITEMS", "50"))
++    log_level: str = os.getenv("LOG_LEVEL", "INFO")
++    user_agent: str = os.getenv("USER_AGENT", "ItabashiMinutesBot/0.1 (+contact
+)")
++    allow_pattern: str = os.getenv("ALLOW_PATTERN", r"^https?://[^/]+/gikai/kai
+giroku/.*")
++    deny_patterns: List[str] = os.getenv("DENY_PATTERNS", r"\.zip$,\.csv$").spl
+it(",")
++
++def compile_allow(config: Config):
++    return re.compile(config.allow_pattern)
++
++def compile_denies(config: Config):
++    return [re.compile(p.strip()) for p in config.deny_patterns if p.strip()]
+
+--- a/crawler/itabashi_spider.py
++++ b/crawler/itabashi_spider.py
+@@
+-#!/usr/bin/env python3
+-"""
+-板橋区議会会議録クローラー
+-Itabashi Ward Council Minutes Crawler
+-"""
+-
+-import time
+-import json
+-import os
+-import logging
+-from datetime import datetime
+-from typing import List, Dict, Optional, Any, cast
+-
+-import requests
+-from bs4 import BeautifulSoup
+-from urllib.parse import urljoin  # urlparse は未使用なので削除
+-
+-logging.basicConfig(level=logging.INFO)
+-logger = logging.getLogger(__name__)
+-
+-
+-class ItabashiMinutesCrawler:
+-    def __init__(
+-        self,
+-        base_url: str = "https://www.city.itabashi.tokyo.jp",
+-        request_delay: float = 1.0,
+-    ) -> None:
+-        self.base_url = base_url
+-        self.request_delay = request_delay
+-        self.session = requests.Session()
+-        self.session.headers.update(
+-            {"User-Agent": "ItabashiMinutesCrawler/1.0 (Research Purpose)"}
+-        )
+-
+-    def _make_request(self, url: str) -> Optional[requests.Response]:
+-        """Make HTTP request with rate limiting and error handling"""
+-        try:
+-            time.sleep(self.request_delay)
+-            response = self.session.get(url, timeout=30)
+-            response.raise_for_status()
+-            return response
+-        except requests.RequestException as e:
+-            logger.error(f"Request failed for {url}: {e}")
+-            return None
+-
+-    def get_latest_fiscal_year_minutes(self) -> List[Dict[str, Any]]:
+-        """Crawl minutes from the latest fiscal year"""
+-        minutes_url = urljoin(self.base_url, "/gikai/kaigiroku/")
+-
+-        response = self._make_request(minutes_url)
+-        if not response:
+-            return []
+-
+-        soup = BeautifulSoup(response.content, "html.parser")
+-        minutes_data: List[Dict[str, Any]] = []
+-
+-        # Find meeting links (placeholder implementation)
+-        meeting_links = soup.find_all("a", href=True)
+-        for link in meeting_links[:5]:  # Limit to first 5 for demo
+-            href: Optional[str] = link.get("href")
+-            if not href:
+-                continue
+-            if "kaigiroku" in href.lower():
+-                full_url = urljoin(self.base_url, href)
+-                minute_data = self._extract_minute_data(
+-                    full_url, link.get_text().strip()
+-                )
+-                if minute_data is not None:
+-                    minutes_data.append(minute_data)
+-
+-        return minutes_data
+-
+-    def _extract_minute_data(self, url: str, title: str) -> Optional[Dict[str, 
+Any]]:
+-        """Extract structured data from a single meeting minute page"""
+-        response = self._make_request(url)
+-        if not response:
+-            return None
+-
+-        soup = BeautifulSoup(response.content, "html.parser")
+-
+-        minute_data: Dict[str, Any] = {
+-            "meeting_date": self._extract_date(title, soup),
+-            "committee": self._extract_committee(title, soup),
+-            "title": title,
+-            "page_url": url,
+-            "pdf_url": self._find_pdf_url(soup, url),
+-            "agenda_items": self._extract_agenda_items(soup),
+-            "crawled_at": datetime.now().isoformat(),
+-        }
+-
+-        return minute_data
+-
+-    def _extract_date(self, title: str, soup: BeautifulSoup) -> Optional[str]:
+-        """Extract meeting date from title or page content"""
+-        import re
+-
+-        date_pattern = r"(\\d{4})年(\\d{1,2})月(\\d{1,2})日"
+-        match = re.search(date_pattern, title)
+-        if match:
+-            year, month, day = match.groups()
+-            return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+-        return None
+-
+-    def _extract_committee(self, title: str, soup: BeautifulSoup) -> str:
+-        """Extract committee name"""
+-        if "本会議" in title:
+-            return "本会議"
+-        if "常任委員会" in title:
+-            return "常任委員会"
+-        if "特別委員会" in title:
+-            return "特別委員会"
+-        return "その他"
+-
+-    def _find_pdf_url(self, soup: BeautifulSoup, base_url: str) -> Optional[str
+]:
+-        """Find PDF download URL"""
+-        pdf_links = soup.find_all("a", href=lambda x: bool(x and x.endswith(".p
+df")))
+-        if pdf_links:
+-            # Tag['href'] は Any 扱いになるので明示キャスト
+-            href = cast(str, pdf_links[0]["href"])
+-            return urljoin(base_url, href)
+-        return None
+-
+-    def _extract_agenda_items(self, soup: BeautifulSoup) -> List[Dict[str, Any]
+]:
+-        """Extract agenda items and speeches"""
+-        agenda_items: List[Dict[str, Any]] = []
+-
+-        # This is a simplified extraction - real implementation would be more c
+omplex
+-        content_divs = soup.find_all(
+-            ["div", "section"], class_=lambda x: bool(x and "content" in x)
+-        )
+-
+-        for i, div in enumerate(content_divs[:3]):  # Limit for demo
+-            text_content = div.get_text().strip()
+-            if len(text_content) > 50:  # Only substantial content
+-                agenda_item: Dict[str, Any] = {
+-                    "agenda_item": f"議事{i+1}",
+-                    "speaker": "議長",  # Placeholder
+-                    "speech_text": text_content[:500],  # Truncate for demo
+-                    "page_no": i + 1,
+-                }
+-                agenda_items.append(agenda_item)
+-
+-        return agenda_items
+-
+-
+-def main() -> None:
+-    """Main crawling function"""
+-    crawler = ItabashiMinutesCrawler()
+-
+-    logger.info("Starting Itabashi minutes crawl...")
+-    minutes = crawler.get_latest_fiscal_year_minutes()
+-
+-    output_file = "crawler/sample/sample_minutes.json"
+-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+-
+-    with open(output_file, "w", encoding="utf-8") as f:
+-        json.dump(minutes, f, ensure_ascii=False, indent=2)
+-
+-    logger.info(f"Crawled {len(minutes)} minutes. Output saved to {output_file}
+")
+-
+-
+-if __name__ == "__main__":
+-    main()
++#!/usr/bin/env python3
++from __future__ import annotations
++import hashlib
++import json
++import logging
++import os
++import random
++import time
++from datetime import datetime
++from typing import Any, Dict, List, Optional, Set, Tuple, cast
++from urllib.parse import urljoin
++
++import requests
++from bs4 import BeautifulSoup
++from urllib import robotparser
++
++from .config import Config, compile_allow, compile_denies
++
++logger = logging.getLogger(__name__)
++
++class ItabashiMinutesCrawler:
++    def __init__(self, config: Optional[Config] = None) -> None:
++        self.config = config or Config()
++        logging.getLogger().setLevel(getattr(logging, self.config.log_level.upp
+er(), logging.INFO))
++        self.base_url = self.config.base_url.rstrip("/")
++        self.allow_re = compile_allow(self.config)
++        self.deny_res = compile_denies(self.config)
++        self.minutes_root = urljoin(self.base_url + "/", "gikai/kaigiroku/")
++        self.session = requests.Session()
++        self.session.headers.update({"User-Agent": self.config.user_agent})
++        self.robots = self._load_robots()
++
++    def _load_robots(self) -> robotparser.RobotFileParser:
++        rp = robotparser.RobotFileParser()
++        rp.set_url(urljoin(self.base_url + "/", "robots.txt"))
++        try:
++            rp.read()
++        except Exception:
++            # 失敗時は保守的挙動（全許可false扱いにしない）。既定で許可する。
++            rp.allow_all = True  # type: ignore[attr-defined]
++        return rp
++
++    def _allowed(self, url: str) -> bool:
++        if not self.allow_re.match(url):
++            return False
++        for d in self.deny_res:
++            if d.search(url):
++                return False
++        try:
++            return self.robots.can_fetch(self.config.user_agent, url)
++        except Exception:
++            return True
++
++    def _sleep_polite(self) -> None:
++        delay = self.config.request_delay * random.uniform(0.9, 1.1)
++        time.sleep(max(0.0, delay))
++
++    def _compute_backoff(self, attempt: int) -> float:
++        base = self.config.backoff_base * (2 ** attempt)
++        jitter = base * random.uniform(-0.1, 0.1)
++        return min(self.config.backoff_max, max(0.0, base + jitter))
++
++    def _make_request(self, url: str) -> Optional[requests.Response]:
++        if not self._allowed(url):
++            logger.debug("Blocked by allow/deny/robots: %s", url)
++            return None
++        last_exc: Optional[Exception] = None
++        for attempt in range(self.config.retries + 1):
++            try:
++                self._sleep_polite()
++                resp = self.session.get(
++                    url,
++                    timeout=(self.config.timeout_connect, self.config.timeout_r
+ead),
++                )
++                status = resp.status_code
++                if status in (429, 503):
++                    retry_after = resp.headers.get("Retry-After")
++                    if retry_after:
++                        try:
++                            wait = float(retry_after)
++                        except ValueError:
++                            wait = self._compute_backoff(attempt)
++                    else:
++                        wait = self._compute_backoff(attempt)
++                    logger.warning("Retryable status %s for %s; sleeping %.2fs"
+, status, url, wait)
++                    time.sleep(wait)
++                    last_exc = None
++                    continue
++                resp.raise_for_status()
++                return resp
++            except requests.Timeout as e:
++                last_exc = e
++                wait = self._compute_backoff(attempt)
++                logger.warning("Timeout for %s; sleeping %.2fs", url, wait)
++                time.sleep(wait)
++            except requests.RequestException as e:
++                # 非再試行の4xx（429除く）は即中断
++                if isinstance(e, requests.HTTPError):
++                    code = cast(requests.Response, e.response).status_code if g
+etattr(e, "response", None) else None
++                    if code and 400 <= code < 500 and code not in (429,):
++                        logger.warning("Non-retryable HTTP %s for %s", code, ur
+l)
++                        return None
++                last_exc = e
++                wait = self._compute_backoff(attempt)
++                logger.warning("Request error for %s; sleeping %.2fs", url, wai
+t)
++                time.sleep(wait)
++        if last_exc:
++            logger.error("Request permanently failed for %s: %s", url, last_exc
+)
++        return None
++
++    def get_latest_fiscal_year_minutes(self) -> List[Dict[str, Any]]:
++        visited: Set[str] = set()
++        items: List[Dict[str, Any]] = []
++        pages = 0
++        url = self.minutes_root
++        while True:
++            if pages >= self.config.max_pages:
++                break
++            if url in visited:
++                break
++            visited.add(url)
++            resp = self._make_request(url)
++            if not resp:
++                break
++            soup = BeautifulSoup(resp.content, "html.parser")
++            for a in soup.select("main a[href], .content a[href]"):
++                href = a.get("href")
++                if not href:
++                    continue
++                abs_url = urljoin(url, href)
++                if not self._allowed(abs_url):
++                    continue
++                if abs_url.lower().endswith(".pdf"):
++                    continue
++                title = a.get_text(strip=True)
++                record = self._extract_minute_data(abs_url, title)
++                if record:
++                    items.append(record)
++                    if len(items) >= self.config.max_items:
++                        break
++            if len(items) >= self.config.max_items:
++                break
++            # nextリンク探索
++            next_link = soup.find("a", attrs={"rel": "next"})
++            if not next_link:
++                next_link = soup.find("a", string=lambda s: bool(s and "次" in 
+s))
++            if not next_link or not next_link.get("href"):
++                break
++            next_url = urljoin(url, cast(str, next_link["href"]))
++            if next_url in visited:
++                break
++            url = next_url
++            pages += 1
++        return items
++
++    def _extract_minute_data(self, url: str, title: str) -> Optional[Dict[str, 
+Any]]:
++        resp = self._make_request(url)
++        if not resp:
++            return None
++        soup = BeautifulSoup(resp.content, "html.parser")
++        meeting_date = self._extract_date(title, soup)
++        committee = self._extract_committee(title, soup)
++        pdf = self._find_pdf_url(soup, url)
++        agenda = self._extract_agenda_items(soup)
++        meeting_id = self._make_meeting_id(meeting_date, committee, url, title)
++        return {
++            "meeting_id": meeting_id,  # 互換検証時はスキーマ投影で除外
++            "meeting_date": meeting_date,
++            "committee": committee,
++            "title": title,
++            "page_url": url,
++            "pdf_url": pdf,
++            "agenda_items": agenda,
++            "crawled_at": datetime.now().isoformat(),
++        }
++
++    def _make_meeting_id(self, date: Optional[str], committee: str, url: str, t
+itle: str) -> str:
++        base = f"{date or 'unknown'}_{committee}".encode("utf-8")
++        h = hashlib.sha1(base + url.encode("utf-8") + title.encode("utf-8")).he
+xdigest()[:8]
++        return f"{(date or 'unknown')}_{committee}_{h}"
++
++    def _extract_date(self, title: str, soup: BeautifulSoup) -> Optional[str]:
++        import re
++        m = re.search(r"(\\d{4})年(\\d{1,2})月(\\d{1,2})日", title)
++        if m:
++            y, mo, d = m.groups()
++            return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
++        return None
++
++    def _extract_committee(self, title: str, soup: BeautifulSoup) -> str:
++        if "本会議" in title:
++            return "本会議"
++        if "常任委員会" in title:
++            return "常任委員会"
++        if "特別委員会" in title:
++            return "特別委員会"
++        return "その他"
++
++    def _find_pdf_url(self, soup: BeautifulSoup, base_url: str) -> Optional[str
+]:
++        link = soup.find("a", href=lambda x: bool(x and x.lower().endswith(".pd
+f")))
++        if link:
++            href = cast(str, link["href"])
++            return urljoin(base_url, href)
++        return None
++
++    def _extract_agenda_items(self, soup: BeautifulSoup) -> List[Dict[str, Any]
+]:
++        items: List[Dict[str, Any]] = []
++        containers = [
++            soup.find("article"),
++            soup.select_one("section.article"),
++            soup.select_one("#main"),
++            soup.find("div", class_=lambda c: bool(c and "content" in c)),
++        ]
++        for i, c in enumerate([x for x in containers if x][:3]):
++            text = c.get_text(strip=True)
++            if len(text) > 50:
++                items.append(
++                    {
++                        "agenda_item": f"議事{i+1}",
++                        "speaker": "議長",
++                        "speech_text": text[:500],
++                        "page_no": i + 1,
++                    }
++                )
++        return items
++
++def main() -> None:
++    # 既存のエントリポイント互換: CLIへ委譲
++    from .cli import main as _main
++    _main()
++
++if __name__ == "__main__":
++    main()
+
+--- /dev/null
++++ b/crawler/cli.py
+@@
++from __future__ import annotations
++import argparse
++import json
++import logging
++import os
++from typing import Any, Dict, List
++
++from jsonschema import validate
++
++from .config import Config
++from .itabashi_spider import ItabashiMinutesCrawler
++
++def _project_to_schema(record: Dict[str, Any]) -> Dict[str, Any]:
++    # スキーマ互換維持: 未定義キー（meeting_id 等）は検証対象から除外
++    allowed = {
++        "meeting_date",
++        "committee",
++        "title",
++        "page_url",
++        "pdf_url",
++        "agenda_items",
++        "meeting_type",
++        "fiscal_year",
++        "session_number",
++        "crawled_at",
++        "processed_at",
++        "source_encoding",
++        "metadata",
++    }
++    return {k: v for k, v in record.items() if k in allowed}
++
++def main() -> None:
++    p = argparse.ArgumentParser(description="Itabashi Minutes Crawler CLI")
++    p.add_argument("--max-pages", type=int, default=None)
++    p.add_argument("--max-items", type=int, default=None)
++    p.add_argument("--validate", action="store_true")
++    p.add_argument("--log-level", default=None)
++    p.add_argument("--dry-run", action="store_true")
++    p.add_argument("--ndjson", action="store_true", help="also write NDJSON alo
+ngside JSON")
++    args = p.parse_args()
++
++    cfg = Config()
++    if args.max_pages is not None:
++        cfg.max_pages = args.max_pages
++    if args.max_items is not None:
++        cfg.max_items = args.max_items
++    if args.log_level:
++        cfg.log_level = args.log_level
++    logging.getLogger().setLevel(getattr(logging, cfg.log_level.upper(), loggin
+g.INFO))
++
++    crawler = ItabashiMinutesCrawler(cfg)
++    records = crawler.get_latest_fiscal_year_minutes()
++
++    out_json = "crawler/sample/sample_minutes.json"
++    os.makedirs(os.path.dirname(out_json), exist_ok=True)
++    if not args.dry_run:
++        with open(out_json, "w", encoding="utf-8") as f:
++            json.dump(records, f, ensure_ascii=False, indent=2)
++        if args.ndjson:
++            out_nd = "crawler/sample/sample_minutes.ndjson"
++            with open(out_nd, "w", encoding="utf-8") as f:
++                for r in records:
++                    f.write(json.dumps(r, ensure_ascii=False) + "\n")
++    if args.validate:
++        import json as _json
++        schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+"schemas", "minutes.schema.json")
++        with open(schema_path, "r", encoding="utf-8") as f:
++            schema = _json.load(f)
++        # 1件でも検証
++        for rec in records[:1]:
++            validate(instance=_project_to_schema(rec), schema=schema)
++        print("✅ schema validation passed for at least one record")
++
++if __name__ == "__main__":
++    main()
+
+--- /dev/null
++++ b/tests/test_crawler_minimum.py
+@@
++import json
++import os
++import types
++import time as _time
++from unittest import mock
++
++import pytest
++
++responses = pytest.importorskip("responses")
++
++from crawler.config import Config
++from crawler.itabashi_spider import ItabashiMinutesCrawler
++
++@responses.activate
++def test_paging_dedup_retry_and_schema(tmp_path):
++    # robots.txt allow
++    base = "https://www.city.itabashi.tokyo.jp"
++    responses.add(
++        responses.GET, f"{base}/robots.txt",
++        body="User-agent: *\nAllow: /gikai/kaigiroku/\n", status=200
++    )
++    # list page 1 -> two meetings + next
++    list1 = f\"\"\"\n    <main>\n      <a href=\"/gikai/kaigiroku/r06/m1.html\"
+>令和6年第1回定例会</a>\n      <a href=\"/gikai/kaigiroku/r06/m2.html\">令和6年
+第2回定例会</a>\n      <a rel=\"next\" href=\"/gikai/kaigiroku/r06/list2.html\">
+次へ</a>\n    </main>\n    \"\"\"\n    responses.add(responses.GET, f\"{base}/gi
+kai/kaigiroku/\", body=list1, status=200)\n    # list page 2 -> points back to p
+age1 (cycle)\n    list2 = \"<main><a href=\\\"/gikai/kaigiroku/\\\">戻る</a></ma
+in>\"\n    responses.add(responses.GET, f\"{base}/gikai/kaigiroku/r06/list2.html
+\", body=list2, status=200)\n\n    # meeting 1: first 429 with Retry-After, then
+ 200\n    m1 = f\"{base}/gikai/kaigiroku/r06/m1.html\"\n    responses.add(respon
+ses.GET, m1, status=429, headers={\"Retry-After\": \"0.1\"})\n    meeting_body =
+ \"\"\"\n    <article>\n      <a href=\"/documents/sample.pdf\">PDF</a>\n      <
+div class=\"content\">2024年3月15日 本会議 議事...（本文）</div>\n    </article>
+\n    \"\"\"\n    responses.add(responses.GET, m1, body=meeting_body, status=200
+)\n\n    # meeting 2: first 503 then 200\n    m2 = f\"{base}/gikai/kaigiroku/r06
+/m2.html\"\n    responses.add(responses.GET, m2, status=503)\n    responses.add(
+responses.GET, m2, body=meeting_body, status=200)\n\n    # pdf\n    responses.ad
+d(responses.GET, f\"{base}/documents/sample.pdf\", body=b\"%PDF-1.7\", status=20
+0)\n\n    cfg = Config()\n    cfg.max_pages = 3\n    cfg.max_items = 2\n    cfg.
+retries = 2\n    cfg.backoff_base = 0.05\n    cfg.backoff_max = 0.5\n    cfg.req
+uest_delay = 0.0\n\n    crawler = ItabashiMinutesCrawler(cfg)\n\n    # speed up 
+sleep\n    with mock.patch.object(crawler, \"_sleep_polite\", lambda: None), \\\
+n         mock.patch(\"time.sleep\", lambda s: None):\n        recs = crawler.ge
+t_latest_fiscal_year_minutes()\n\n    assert len(recs) == 2\n    assert all(\"me
+eting_id\" in r for r in recs)\n    assert all(r.get(\"pdf_url\", \"\").endswith
+(\".pdf\") for r in recs if r.get(\"pdf_url\"))\n\n    # schema minimal validati
+on (project unknown fields out)\n    import json as _json\n    from jsonschema i
+mport validate as _validate\n    schema_path = os.path.join(os.path.dirname(os.p
+ath.dirname(__file__)), \"schemas\", \"minutes.schema.json\")\n    with open(sch
+ema_path, \"r\", encoding=\"utf-8\") as f:\n        schema = _json.load(f)\n    
+def project(rec):\n        allow = {\"meeting_date\",\"committee\",\"title\",\"p
+age_url\",\"pdf_url\",\"agenda_items\",\"crawled_at\"}\n        return {k: rec[k
+] for k in allow if k in rec}\n    _validate(instance=project(recs[0]), schema=s
+chema)\n\n+def test_backoff_capped():\n+    cfg = Config()\n+    cfg.backoff_bas
+e = 1.0\n+    cfg.backoff_max = 30.0\n+    c = ItabashiMinutesCrawler(cfg)\n+   
+ with mock.patch(\"random.uniform\", return_value=0.0):\n+        assert c._comp
+ute_backoff(10) <= cfg.backoff_max\n\n--- /dev/null
++++ b/README.md
+@@
++# Itabashi Minutes — Dev Quickstart
++
++## Setup
++- Python 3.11 推奨。Poetry で依存導入: `poetry install --only main,dev`
++- 実行前に robots.txt とアクセス制御を遵守してください（1 req/sec + ジッター、
+夜間実行推奨）。
++
++## Configuration
++- `.env`（任意）: `REQUEST_DELAY=1.0`, `MAX_PAGES=2`, `MAX_ITEMS=50`, `RETRIES=
+3`, `TIMEOUT_CONNECT=10`, `TIMEOUT_READ=30`, `BACKOFF_BASE=1.0`, `BACKOFF_MAX=30
+.0`, `USER_AGENT="ItabashiMinutesBot/0.1 (+contact)"`
++- URL制約: 許可リスト `^https?://[^/]+/gikai/kaigiroku/.*`、DENYは `.zip,.csv` 
+など。
++
++## Run
++- 互換エントリ（現状すぐ実行可）: `poetry run python -m crawler.cli --max-pages
+ 2 --max-items 3 --validate --ndjson`
++- スクリプトエントリ（pyproject更新後）: `poetry run itabashi-crawler`
++- 出力: JSON `crawler/sample/sample_minutes.json`、NDJSON `crawler/sample/sampl
+e_minutes.ndjson`
++
++## Validate
++- スキーマ検証（--validate指定時）: `schemas/minutes.schema.json` に対して未知
+キーを除外して検証します（互換維持）。
++
++## Test
++- 単体テスト: `poetry run pytest -q`
++- 429/503/Retry-After、ページング停止、重複除外、バックオフ上限などを responses
+ でスタブ（未導入時はskip）。
++
++## Notes
++- スキーマ互換性を破壊しないこと（meeting_id は出力に含むが検証時は除外投影）。
++- robots.txt を起動時に取得・キャッシュし、許可判定の上でのみクロールします。
+
+この計画と差分内容で問題なければ、"approve apply" をいただければ実ファイルに反映
+します。なお、CLIスクリプトの追加（`pyproject.toml` への `itabashi-crawler = "cr
+awler.cli:main"`）は、次の小さな差分として提示可能です。
