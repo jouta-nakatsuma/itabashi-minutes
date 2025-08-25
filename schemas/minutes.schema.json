@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/itabashi-minutes.schema.json",
+  "x-schema-version": "1.0.0",
   "title": "Itabashi Ward Council Minutes Record",
   "description": "Schema for normalized council minutes records from Itabashi Ward",
   "type": "object",

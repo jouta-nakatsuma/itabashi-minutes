@@ -23,3 +23,17 @@
 ## Notes
 - スキーマ互換性を破壊しないこと（meeting_id は出力に含むが検証時は除外投影）。
 - robots.txt を起動時に取得し、許可判定の上でのみクロールします（読込失敗時は警告ログ、can_fetch 例外時は許可扱い）。
+
+## Schema Compatibility
+- ポリシー（破壊的変更の例）:
+  - required の追加、properties の削除、type の縮小（旧 ⊄ 新）、enum の縮小
+  - 数値/文字列制約の強化（minimum↑, maximum↓, minLength↑, maxLength↓）
+  - additionalProperties を true→false、配列 items.required の追加（要素必須の強化）
+- 非破壊の例:
+  - 任意プロパティの追加、required の削除、enum の拡張、制約の緩和
+- バージョニング:
+  - `x-schema-version` をスキーマに付与（例: 1.0.0）
+  - patch: 任意項目追加・緩和、minor: サブスキーマ拡張、major: 破壊的変更（原則禁止）
+- CI チェック:
+  - PR 上で `tools/check_schema_compat.py` により `schemas/minutes.schema.json` の互換性を検査します。
+  - 破壊的変更が検出されるとワークフローが失敗します。
