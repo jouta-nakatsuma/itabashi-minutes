@@ -116,7 +116,10 @@ def load_file(conn: sqlite3.Connection, path: Path) -> Tuple[bool, bool]:
             )
             agenda_item_id = int(cur_ai.lastrowid)
             for sp in ai.speeches:
-                raw_text = "\n".join(sp.paragraphs or [])
+                # インデックス対象テキスト: 話者名/役職 も含めて検索可能にする
+                header = " ".join([t for t in [sp.speaker or "", sp.role or ""] if t]).strip()
+                body = "\n".join(sp.paragraphs or [])
+                raw_text = f"{header}\n{body}" if header else body
                 speech_text = _make_index_text(raw_text)
                 conn.execute(
                     """
