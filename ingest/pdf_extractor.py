@@ -70,3 +70,96 @@ if __name__ == "__main__":
     except Exception as e:
         logging.exception("抽出中にエラー: %s", e)
         sys.exit(1)
+
+
+# --- Glyph patch: add extract_text_per_page() for CLI/tests compatibility ---
+from typing import List, Union
+
+def extract_text_per_page(pdf_path: Union[str, Path]) -> List[str]:
+    """
+    Return a list of page texts extracted from the PDF.
+    This function is kept simple for CLI/tests compatibility.
+    """
+    try:
+        from pypdf import PdfReader
+    except Exception as e:
+        raise RuntimeError(
+            "pypdf が必要です。`poetry add pypdf` を実行してください。"
+        ) from e
+
+    p = Path(pdf_path)
+    reader = PdfReader(str(p))
+    texts: List[str] = []
+    for pg in reader.pages:
+        try:
+            t = pg.extract_text() or ""
+        except Exception:
+            t = ""
+        texts.append(t)
+    return texts
+
+# 既存の JSON 出力用関数がある場合は、それをこの関数で内包できるように軽いエイリアスも用意
+def _extract_pages_with_pypdf_compat(pdf_path: Union[str, Path]):
+    pages = extract_text_per_page(pdf_path)
+    return [{"page": i+1, "text": txt} for i, txt in enumerate(pages)]
+# --- end patch ---
+
+
+# --- Glyph patch: provider-aware extract_text_per_page (auto/pypdf/pdfminer) ---
+from typing import List, Union, Iterator
+
+# テストで monkeypatch しやすいようフックを用意
+try:
+    from pypdf import PdfReader as _DefaultPdfReader
+except Exception:
+    _DefaultPdfReader = None
+PYPDF_READER = _DefaultPdfReader
+
+try:
+    from pdfminer.high_level import extract_pages as _default_extract_pages
+    from pdfminer.layout import LTTextContainer as _default_lt
+except Exception:
+    _default_extract_pages = None
+    _default_lt = None
+PDFMINER_EXTRACT_PAGES = _default_extract_pages
+PDFMINER_LT = _default_lt
+
+def _via_pypdf(path: Union[str, Path]) -> List[str]:
+    if PYPDF_READER is None:
+        raise RuntimeError("pypdf not available")
+    r = PYPDF_READER(str(path))
+    out: List[str] = []
+    for pg in getattr(r, "pages", []):
+        try:
+            out.append(pg.extract_text() or "")
+        except Exception:
+            out.append("")
+    return out
+
+def _via_pdfminer(path: Union[str, Path]) -> List[str]:
+    if PDFMINER_EXTRACT_PAGES is None or PDFMINER_LT is None:
+        raise RuntimeError("pdfminer not available")
+    out: List[str] = []
+    for page in PDFMINER_EXTRACT_PAGES(str(path)):
+        buf: List[str] = []
+        for elem in page:
+            if isinstance(elem, PDFMINER_LT):
+                try:
+                    buf.append(elem.get_text())
+                except Exception:
+                    pass
+        out.append("".join(buf))
+    return out
+
+def extract_text_per_page(pdf_path: Union[str, Path], provider: str = "auto") -> List[str]:
+    prov = (provider or "auto").lower()
+    if prov == "pypdf":
+        return _via_pypdf(pdf_path)
+    if prov == "pdfminer":
+        return _via_pdfminer(pdf_path)
+    # auto: pypdf → 失敗時 pdfminer
+    try:
+        return _via_pypdf(pdf_path)
+    except Exception:
+        return _via_pdfminer(pdf_path)
+# --- end patch ---
