@@ -19,6 +19,40 @@ from .config import Config, compile_allow, compile_denies
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Added: committee name normalization & doc type classification (post-process) ---
+COMMITTEE_SLUG_MAP = {
+    "bunkyojidou": "文教児童委員会",
+    "toshikensetsu": "都市建設委員会",
+    "kenkofukushi": "健康福祉委員会",
+    "kuminkankyo": "区民環境委員会",
+    "kikakusoumu": "企画総務委員会",
+}
+
+def _infer_committee_from_url(url: str) -> str:
+    low = (url or "").lower()
+    key = "/iinnkaishidai/"
+    pos = low.find(key)
+    if pos != -1:
+        rest = low[pos + len(key):]
+        slug = rest.split("/", 1)[0]
+        return COMMITTEE_SLUG_MAP.get(slug, "その他")
+    return "その他"
+
+def _infer_doc_type_from_url(url: str) -> str:
+    low = (url or "").lower()
+    if "/kaigishidai/iinnkaishidai/" in low:
+        return "委員会次第"
+    if "kousaihi" in low or "gikaikousaihi" in low:
+        return "議会交際費"
+    if "gikaidayori" in low or "dayori" in low:
+        return "区議会だより"
+    if "houkokukai" in low or "gikaihoukokukai" in low:
+        return "議会報告会"
+    if "shinsakekka" in low:
+        return "審査結果"
+    return "その他"
+
+
 
 def detect_date(text: str) -> Optional[str]:
     """
@@ -62,7 +96,7 @@ class ItabashiMinutesCrawler:
         self.base_url = self.config.base_url.rstrip("/")
         self.allow_re = compile_allow(self.config)
         self.deny_res = compile_denies(self.config)
-        self.minutes_root = urljoin(self.base_url + "/", "gikai/kaigiroku/")
+        self.minutes_root = urljoin(self.base_url + "/", "kugikai/")
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": self.config.user_agent})
         self.robots = self._load_robots()
@@ -298,6 +332,14 @@ def main() -> None:
     crawler = ItabashiMinutesCrawler(Config())
     logger.info("Starting Itabashi minutes crawl...")
     minutes = crawler.get_latest_fiscal_year_minutes()
+
+    # normalize committee/doc_type (post-process minimal patch)
+    for rec in minutes:
+        page_url = rec.get("page_url", "")
+        if not rec.get("committee") or rec.get("committee") == "その他":
+            rec["committee"] = _infer_committee_from_url(page_url)
+        if "doc_type" not in rec or not rec["doc_type"]:
+            rec["doc_type"] = _infer_doc_type_from_url(page_url)
     output_file = "crawler/sample/sample_minutes.json"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:

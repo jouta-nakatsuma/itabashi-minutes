@@ -24,7 +24,7 @@ class Config:
     user_agent: str = os.getenv("USER_AGENT", "ItabashiMinutesBot/0.1 (+contact)")
     allow_pattern: str = os.getenv(
         "ALLOW_PATTERN",
-        r"^https?://[^/]+/gikai/kaigiroku/.*",
+        r"^https?://www\.city\.itabashi\.tokyo\.jp/(?:ku)?gikai/.*"
     )
     deny_patterns_raw: str = os.getenv("DENY_PATTERNS", r"\.zip$,\.csv$")
 
