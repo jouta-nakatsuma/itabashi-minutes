@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+import shutil
 
 from catalog.load import load_directory
 
@@ -9,7 +10,12 @@ from catalog.load import load_directory
 def test_catalog_load_e2e(tmp_path: Path) -> None:
     # Prepare temp DB and source
     db_path = tmp_path / "var" / "minutes.db"
-    src_dir = Path("tests/fixtures")
+    # 検証用に対象ファイルのみをコピーしたソースディレクトリを用意
+    src_dir = tmp_path / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        Path("tests/fixtures/sample_minutes_01.json"), src_dir / "sample_minutes_01.json"
+    )
 
     total, inserted, skipped = load_directory(db_path, src_dir)
     assert total >= 1
@@ -37,4 +43,3 @@ def test_catalog_load_e2e(tmp_path: Path) -> None:
             ("2025-08-21", "文教児童委員会"),
         )
         assert cur.fetchone()[0] == 1
-
