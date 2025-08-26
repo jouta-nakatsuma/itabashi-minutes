@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
-from pydantic import BaseModel, Field
+try:
+    from pydantic import BaseModel, Field  # type: ignore
+    _USE_PYDANTIC = True
+except Exception:  # pragma: no cover - fallback if pydantic not installed
+    from dataclasses import asdict, dataclass, field as dataclass_field
+    _USE_PYDANTIC = False
 
 from .patterns import (
     ROLE_TITLES,
@@ -15,25 +20,52 @@ from .patterns import (
     normalize_space,
 )
 
+if _USE_PYDANTIC:
+    class Speech(BaseModel):
+        speaker: str = Field(..., description="話者名（役職語を除いたコア名）")
+        role: Optional[str] = Field(None, description="役職（委員/議員/部長/課長/教育長/理事者 等）")
+        paragraphs: List[str] = Field(default_factory=list, description="発言本文の段落配列")
 
-class Speech(BaseModel):
-    speaker: str = Field(..., description="話者名（役職語を除いたコア名）")
-    role: Optional[str] = Field(None, description="役職（委員/議員/部長/課長/教育長/理事者 等）")
-    paragraphs: List[str] = Field(default_factory=list, description="発言本文の段落配列")
+    class AgendaItem(BaseModel):
+        title: str
+        order_no: int
+        speeches: List[Speech] = Field(default_factory=list)
 
+    class MinutesStructure(BaseModel):
+        meeting_date: Optional[str] = None
+        committee: Optional[str] = None
+        page_url: Optional[str] = None
+        pdf_url: Optional[str] = None
+        agenda_items: List[AgendaItem] = Field(default_factory=list)
+else:
+    @dataclass
+    class Speech:  # type: ignore[no-redef]
+        speaker: str
+        role: Optional[str] = None
+        paragraphs: List[str] = dataclass_field(default_factory=list)
 
-class AgendaItem(BaseModel):
-    title: str
-    order_no: int
-    speeches: List[Speech] = Field(default_factory=list)
+        def model_dump(self) -> Dict[str, Any]:  # pragma: no cover - simple passthrough
+            return asdict(self)
 
+    @dataclass
+    class AgendaItem:  # type: ignore[no-redef]
+        title: str
+        order_no: int
+        speeches: List[Speech] = dataclass_field(default_factory=list)
 
-class MinutesStructure(BaseModel):
-    meeting_date: Optional[str] = None
-    committee: Optional[str] = None
-    page_url: Optional[str] = None
-    pdf_url: Optional[str] = None
-    agenda_items: List[AgendaItem] = Field(default_factory=list)
+        def model_dump(self) -> Dict[str, Any]:  # pragma: no cover
+            return asdict(self)
+
+    @dataclass
+    class MinutesStructure:  # type: ignore[no-redef]
+        meeting_date: Optional[str] = None
+        committee: Optional[str] = None
+        page_url: Optional[str] = None
+        pdf_url: Optional[str] = None
+        agenda_items: List[AgendaItem] = dataclass_field(default_factory=list)
+
+        def model_dump(self) -> Dict[str, Any]:  # pragma: no cover
+            return asdict(self)
 
 
 def _read_input_text(obj: Mapping[str, Any]) -> str:
@@ -161,4 +193,3 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
-
