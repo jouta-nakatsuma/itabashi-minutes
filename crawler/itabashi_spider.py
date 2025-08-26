@@ -445,6 +445,7 @@ ItabashiMinutesCrawler.crawl = _glyph_crawl_impl_v2
 
 
 # --- Glyph patch: crawl() yields schema-ready stub records (3 items) ---
+# TODO(Sprint2): このcrawl()は最小スタブです。一覧→詳細の本実装に置き換えます（DOM選択・ページング・429/5xxリトライ・詳細ページ解析・正規化・スキーマ厳格化）。
 from typing import Iterator, Optional, Dict, Any
 import time, logging, datetime as dt
 
