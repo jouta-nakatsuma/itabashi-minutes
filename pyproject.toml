@@ -44,6 +44,7 @@ mecab-python3 = "^1.0.8"
 wordcloud = "^1.9.2"
 jsonschema = "^4.23.0"
 python-dotenv = "^1.0.0"
+pypdf = "^6.0.0"
 
 [tool.poetry.group.app]
 optional = true
