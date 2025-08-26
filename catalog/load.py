@@ -6,6 +6,7 @@ import logging
 import sqlite3
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
+import re
 
 from ingest.structure_extractor import extract_minutes_structure
 
@@ -50,6 +51,31 @@ def upsert_minutes(conn: sqlite3.Connection, record: Dict) -> Tuple[int, bool]:
     return int(cur.lastrowid), True
 
 
+_CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f]+")
+
+
+def _make_index_text(text: str) -> str:
+    """Return text augmented with CJK 2-gram and 3-gram tokens for FTS matching.
+
+    - Keeps original text so exact tokens like "教育長" (before punctuation) can match
+      via unicode61 tokenization.
+    - Adds 2-grams and 3-grams over contiguous CJK sequences so shorter queries like
+      "給食" also match.
+    """
+    tokens: list[str] = []
+    for m in _CJK_RE.finditer(text):
+        s = m.group(0)
+        # 2-grams
+        for i in range(len(s) - 1):
+            tokens.append(s[i : i + 2])
+        # 3-grams
+        for i in range(len(s) - 2):
+            tokens.append(s[i : i + 3])
+    if tokens:
+        return f"{text}\n" + " ".join(tokens)
+    return text
+
+
 def load_file(conn: sqlite3.Connection, path: Path) -> Tuple[bool, bool]:
     """
     Load a single JSON file into DB.
@@ -90,7 +116,8 @@ def load_file(conn: sqlite3.Connection, path: Path) -> Tuple[bool, bool]:
             )
             agenda_item_id = int(cur_ai.lastrowid)
             for sp in ai.speeches:
-                speech_text = "\n".join(sp.paragraphs or [])
+                raw_text = "\n".join(sp.paragraphs or [])
+                speech_text = _make_index_text(raw_text)
                 conn.execute(
                     """
                     INSERT INTO speeches(minutes_id, agenda_item_id, speaker, role, speech_text)
@@ -141,4 +168,3 @@ def main(argv: Iterable[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
