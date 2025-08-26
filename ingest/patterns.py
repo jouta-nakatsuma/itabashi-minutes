@@ -3,15 +3,23 @@ from __future__ import annotations
 import re
 from typing import Optional, Pattern
 
-# 議題見出し検出：番号/括り記号/丸印などで始まり、話者行（:：）と衝突しない
+"""Pattern utilities for detecting agenda headings and speaker lines."""
+
+# 議題見出し検出：
+# - 行内にコロン（:：）が含まれない
+# - 次のいずれかの形式に合致
+#   * 【...】 / 〔...〕 の括り見出し（行全体）
+#   * 第○（漢数字） + 任意テキスト
+#   * 数字+.)） + 任意テキスト
+#   * 丸印など + 任意テキスト
 AGENDA_HEADING_RE: Pattern[str] = re.compile(
-    r"^(?:"
-    r"第[一二三四五六七八九十百]+[ 　]*"
-    r"|[0-9０-９]{1,3}[.)）][ 　]*"
+    r"^(?!.*[:：])(?:"
+    r"【[^】]+】"
     r"|〔[^〕]+〕"
-    r"|【[^】]+】"
-    r"|[◇◆■○●◎・]"
-    r")(?:(?![:：]).)+$"
+    r"|第[一二三四五六七八九十百]+[ 　]*.+"
+    r"|[0-9０-９]{1,3}[.)）][ 　]*.+"
+    r"|[◇◆■○●◎・].+"
+    r")$"
 )
 
 # 話者行検出：「○中妻委員：」「教育長：」「理事者：」「○ 田中議員：」等
@@ -51,4 +59,3 @@ def is_noise(line: str) -> bool:
     if not s:
         return False
     return bool(PAGE_HEADER_RE.match(s) or PAREN_NOISE_RE.match(s) or DECOR_ONLY_RE.match(s))
-
