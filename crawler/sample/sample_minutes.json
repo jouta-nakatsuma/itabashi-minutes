@@ -1,143 +1,134 @@
 [
   {
-    "meeting_date": "2024-03-15",
-    "committee": "本会議",
-    "title": "令和6年第1回定例会第3日",
-    "page_url": "https://www.city.itabashi.tokyo.jp/gikai/kaigiroku/r06/240315.html",
-    "pdf_url": "https://www.city.itabashi.tokyo.jp/documents/240315.pdf",
-    "agenda_items": [
-      {
-        "agenda_item": "令和6年度予算について",
-        "speaker": "田中議員",
-        "speech_text": "議長、質問いたします。令和6年度の予算案についてお伺いします。特に教育予算の充実についてですが、小中学校のICT環境整備に関する予算措置は十分でしょうか。子どもたちの学習環境向上のため、より一層の予算確保が必要と考えますが、区長の見解をお聞かせください。",
-        "page_no": 5,
-        "paragraphs": [
-          "議長、質問いたします。",
-          "令和6年度の予算案についてお伺いします。",
-          "特に教育予算の充実についてですが、小中学校のICT環境整備に関する予算措置は十分でしょうか。",
-          "子どもたちの学習環境向上のため、より一層の予算確保が必要と考えますが、区長の見解をお聞かせください。"
-        ],
-        "speech_order": 1,
-        "speech_type": "質問"
-      },
-      {
-        "agenda_item": "令和6年度予算について",
-        "speaker": "区長",
-        "speech_text": "田中議員のご質問にお答えいたします。教育予算につきましては、令和6年度は前年度比10%増の予算を確保しております。ICT環境整備については、全小中学校への一人一台端末の維持管理費用として約2億円、校内LAN環境の更新に1.5億円を計上しており、子どもたちの学習環境の充実に努めてまいります。",
-        "page_no": 5,
-        "paragraphs": [
-          "田中議員のご質問にお答えいたします。",
-          "教育予算につきましては、令和6年度は前年度比10%増の予算を確保しております。",
-          "ICT環境整備については、全小中学校への一人一台端末の維持管理費用として約2億円、校内LAN環境の更新に1.5億円を計上しており、子どもたちの学習環境の充実に努めてまいります。"
-        ],
-        "speech_order": 2,
-        "speech_type": "答弁"
-      }
-    ],
-    "meeting_type": "定例会",
-    "fiscal_year": 2024,
-    "session_number": 1,
-    "crawled_at": "2024-03-20T10:30:00+09:00",
-    "processed_at": "2024-03-20T11:00:00+09:00",
-    "metadata": {
-      "total_speeches": 25,
-      "total_pages": 120,
-      "word_count": 15000,
-      "duration_minutes": 240
-    }
+    "meeting_id": "2025-08-21_その他_4ef65d06",
+    "meeting_date": "2025-08-21",
+    "committee": "文教児童委員会",
+    "title": "文教児童委員会（令和7年8月21日　午前10時）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/bunkyojidou/1059019.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/019/r70821_bu_1.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:25.444544",
+    "doc_type": "委員会次第"
   },
   {
-    "meeting_date": "2024-02-28",
-    "committee": "常任委員会",
-    "title": "総務委員会",
-    "page_url": "https://www.city.itabashi.tokyo.jp/gikai/kaigiroku/r06/240228_soumu.html",
+    "meeting_id": "2025-08-21_その他_cbb0d652",
+    "meeting_date": "2025-08-21",
+    "committee": "都市建設委員会",
+    "title": "都市建設委員会（令和7年8月21日　午前10時）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/toshikensetsu/1059018.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/018/r70821_to_1.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:26.571448",
+    "doc_type": "委員会次第"
+  },
+  {
+    "meeting_id": "2025-08-20_その他_022d0fe5",
+    "meeting_date": "2025-08-20",
+    "committee": "健康福祉委員会",
+    "title": "健康福祉委員会（令和7年8月20日　午前10時）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kenkofukushi/1059017.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/017/r70820_ke_1.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:27.603439",
+    "doc_type": "委員会次第"
+  },
+  {
+    "meeting_id": "2025-08-20_その他_a09356c5",
+    "meeting_date": "2025-08-20",
+    "committee": "区民環境委員会",
+    "title": "区民環境委員会（令和7年8月20日　午前10時）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kuminkankyo/1059016.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/016/r70820_ku_1.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:28.694974",
+    "doc_type": "委員会次第"
+  },
+  {
+    "meeting_id": "2025-08-20_その他_201f76c9",
+    "meeting_date": "2025-08-20",
+    "committee": "企画総務委員会",
+    "title": "企画総務委員会（令和7年8月20日　午前10時）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kikakusoumu/1059014.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/014/r70820_ki_1.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:29.784444",
+    "doc_type": "委員会次第"
+  },
+  {
+    "meeting_id": "2025-08-05_その他_a9361279",
+    "meeting_date": "2025-08-05",
+    "committee": "その他",
+    "title": "令和7年度　議会交際費",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kousaihi/1057844.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/057/844/r704_kousaihi2.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:30.939860",
+    "doc_type": "議会交際費"
+  },
+  {
+    "meeting_id": "2025-07-20_その他_eeb6983e",
+    "meeting_date": "2025-07-20",
+    "committee": "その他",
+    "title": "テキスト版の主な記事　令和7年第2回定例会",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/dayori/text/1058811/index.html",
     "pdf_url": null,
-    "agenda_items": [
-      {
-        "agenda_item": "防災対策の強化について",
-        "speaker": "佐藤委員",
-        "speech_text": "委員長、質問させていただきます。昨年の台風被害を受けて、防災対策の見直しが検討されていると思いますが、具体的にどのような強化策を講じる予定でしょうか。特に避難所の収容能力向上と、高齢者・障害者への支援体制について詳しくお聞かせください。",
-        "page_no": 12,
-        "paragraphs": [
-          "委員長、質問させていただきます。",
-          "昨年の台風被害を受けて、防災対策の見直しが検討されていると思いますが、具体的にどのような強化策を講じる予定でしょうか。",
-          "特に避難所の収容能力向上と、高齢者・障害者への支援体制について詳しくお聞かせください。"
-        ],
-        "speech_order": 1,
-        "speech_type": "質問"
-      },
-      {
-        "agenda_item": "防災対策の強化について",
-        "speaker": "防災課長",
-        "speech_text": "佐藤委員のご質問にお答えします。防災対策の強化につきましては、まず避難所の収容能力向上として、新たに3か所の施設を指定避難所に追加する予定です。また、高齢者・障害者支援については、福祉避難所を現在の5か所から8か所に増設し、専門職員の配置も強化いたします。さらに、地域の民生委員との連携体制も構築してまいります。",
-        "page_no": 12,
-        "paragraphs": [
-          "佐藤委員のご質問にお答えします。",
-          "防災対策の強化につきましては、まず避難所の収容能力向上として、新たに3か所の施設を指定避難所に追加する予定です。",
-          "また、高齢者・障害者支援については、福祉避難所を現在の5か所から8か所に増設し、専門職員の配置も強化いたします。",
-          "さらに、地域の民生委員との連携体制も構築してまいります。"
-        ],
-        "speech_order": 2,
-        "speech_type": "答弁"
-      }
-    ],
-    "meeting_type": "委員会",
-    "fiscal_year": 2024,
-    "session_number": null,
-    "crawled_at": "2024-03-20T10:45:00+09:00",
-    "processed_at": "2024-03-20T11:15:00+09:00",
-    "metadata": {
-      "total_speeches": 12,
-      "total_pages": 45,
-      "word_count": 8500,
-      "duration_minutes": 120
-    }
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:32.089635",
+    "doc_type": "区議会だより"
   },
   {
-    "meeting_date": "2024-01-25",
-    "committee": "特別委員会",
-    "title": "環境対策特別委員会",
-    "page_url": "https://www.city.itabashi.tokyo.jp/gikai/kaigiroku/r06/240125_kankyo.html",
-    "pdf_url": "https://www.city.itabashi.tokyo.jp/documents/240125_kankyo.pdf",
-    "agenda_items": [
-      {
-        "agenda_item": "脱炭素社会実現に向けた取り組みについて",
-        "speaker": "鈴木委員",
-        "speech_text": "委員長、環境問題について質問いたします。板橋区の脱炭素社会実現に向けた取り組みについて、現在の進捗状況はいかがでしょうか。特に再生可能エネルギーの導入促進と、区民・事業者との連携による温室効果ガス削減の具体策についてお伺いします。",
-        "page_no": 8,
-        "paragraphs": [
-          "委員長、環境問題について質問いたします。",
-          "板橋区の脱炭素社会実現に向けた取り組みについて、現在の進捗状況はいかがでしょうか。",
-          "特に再生可能エネルギーの導入促進と、区民・事業者との連携による温室効果ガス削減の具体策についてお伺いします。"
-        ],
-        "speech_order": 1,
-        "speech_type": "質問"
-      },
-      {
-        "agenda_item": "脱炭素社会実現に向けた取り組みについて",
-        "speaker": "環境政策課長",
-        "speech_text": "鈴木委員のご質問にお答えいたします。脱炭素社会実現に向けた取り組みにつきましては、令和5年度末時点で区内の温室効果ガス排出量を平成25年度比で15%削減を達成しております。再生可能エネルギー導入については、太陽光発電設備設置への補助金制度を拡充し、区民・事業者合わせて年間200件の設置支援を目標としています。また、省エネルギー行動の啓発として、エコライフ推進員制度を新設し、地域に根ざした環境活動を推進してまいります。",
-        "page_no": 8,
-        "paragraphs": [
-          "鈴木委員のご質問にお答えいたします。",
-          "脱炭素社会実現に向けた取り組みにつきましては、令和5年度末時点で区内の温室効果ガス排出量を平成25年度比で15%削減を達成しております。",
-          "再生可能エネルギー導入については、太陽光発電設備設置への補助金制度を拡充し、区民・事業者合わせて年間200件の設置支援を目標としています。",
-          "また、省エネルギー行動の啓発として、エコライフ推進員制度を新設し、地域に根ざした環境活動を推進してまいります。"
-        ],
-        "speech_order": 2,
-        "speech_type": "答弁"
-      }
-    ],
-    "meeting_type": "委員会",
-    "fiscal_year": 2024,
-    "session_number": null,
-    "crawled_at": "2024-03-20T11:00:00+09:00",
-    "processed_at": "2024-03-20T11:30:00+09:00",
-    "metadata": {
-      "total_speeches": 8,
-      "total_pages": 32,
-      "word_count": 6200,
-      "duration_minutes": 90
-    }
+    "meeting_id": "2025-07-20_その他_a5ef854f",
+    "meeting_date": "2025-07-20",
+    "committee": "その他",
+    "title": "いたばし区議会だよりPDF版（令和7年第2回定例会）",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/dayori/pdf/1058797.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/058/797/da213_1-8.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:33.234610",
+    "doc_type": "区議会だより"
+  },
+  {
+    "meeting_id": "2025-07-01_その他_166e2c67",
+    "meeting_date": "2025-07-01",
+    "committee": "その他",
+    "title": "議会報告会",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/nenpo/1027645/index.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/027/645/gikai_houkokukai_12.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:34.238547",
+    "doc_type": "その他"
+  },
+  {
+    "meeting_id": "2025-06-24_その他_857fb787",
+    "meeting_date": "2025-06-24",
+    "committee": "その他",
+    "title": "議案等の審査結果",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/gian/1011530.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/011/530/r70623_giankekka.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:35.277880",
+    "doc_type": "その他"
+  },
+  {
+    "meeting_id": "2025-08-01_その他_4422b665",
+    "meeting_date": "2025-08-01",
+    "committee": "その他",
+    "title": "行政視察受入れのご案内",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/1048702.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/048/702/gikaiyouran_4.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:53.664754",
+    "doc_type": "その他"
+  },
+  {
+    "meeting_id": "2025-06-09_その他_71888ae6",
+    "meeting_date": "2025-06-09",
+    "committee": "その他",
+    "title": "委員会の次第及び資料",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/index.html",
+    "pdf_url": null,
+    "agenda_items": [],
+    "crawled_at": "2025-08-26T16:19:57.130612",
+    "doc_type": "委員会次第"
   }
 ]
