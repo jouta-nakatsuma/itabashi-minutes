@@ -1,104 +1,72 @@
-from __future__ import annotations
-import logging
-from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+#!/usr/bin/env python3
+import argparse, json, sys, logging
+from pathlib import Path
+from datetime import datetime
 
-# Optional provider aliases (resolved at import time)
-try:
-    from pypdf import PdfReader as PYPDF_READER  # type: ignore[assignment]
-except Exception:  # pragma: no cover - environment without pypdf
-    PYPDF_READER = None  # type: ignore[assignment]
+EXTRACTOR_VERSION = "0.1.0"
 
-try:
-    from pdfminer.high_level import extract_pages as PDFMINER_EXTRACT_PAGES  # type: ignore[assignment]
-    from pdfminer.layout import LTTextContainer as PDFMINER_LT  # type: ignore[assignment]
-except Exception:  # pragma: no cover - environment without pdfminer.six
-    PDFMINER_EXTRACT_PAGES = None  # type: ignore[assignment]
-    PDFMINER_LT = None  # type: ignore[assignment]
+def setup_logger(verbose: bool):
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s", stream=sys.stderr)
 
-
-def _extract_with_pypdf(path: str, max_pages: Optional[int] = None) -> List[str]:
-    if PYPDF_READER is None:
-        raise RuntimeError("pypdf is not available")
-    reader = PYPDF_READER(path)  # type: ignore[operator]
-    texts: List[str] = []
-    for i, page in enumerate(reader.pages):
-        if max_pages is not None and i >= max_pages:
-            break
-        try:
-            txt = page.extract_text() or ""
-        except Exception:
-            txt = ""
-        texts.append(txt.strip())
-    return texts
-
-
-def _extract_with_pdfminer(path: str, max_pages: Optional[int] = None) -> List[str]:
-    if PDFMINER_EXTRACT_PAGES is None or PDFMINER_LT is None:
-        raise RuntimeError("pdfminer.six is not available")
-    texts: List[str] = []
-    for i, page_layout in enumerate(PDFMINER_EXTRACT_PAGES(path)):  # type: ignore[misc]
-        if max_pages is not None and i >= max_pages:
-            break
-        parts: List[str] = []
-        try:
-            for element in page_layout:
-                if isinstance(element, PDFMINER_LT):  # type: ignore[arg-type]
-                    parts.append(element.get_text() or "")
-        except Exception:
-            # レイアウト走査で例外が出てもそのページは空文字扱い
-            parts = []
-        texts.append("".join(parts).strip())
-    return texts
-
-
-def extract_text_per_page(
-    path: str, max_pages: Optional[int] = None, provider: str = "auto"
-) -> List[str]:
-    """
-    Extract per-page text as list[str].
-    provider:
-      - "auto": try pypdf then fallback to pdfminer on failure
-      - "pypdf": use pypdf only
-      - "pdfminer": use pdfminer only
-    """
-    if provider not in ("auto", "pypdf", "pdfminer"):
-        raise ValueError(f"unknown provider: {provider}")
-
-    if provider in ("auto", "pypdf"):
-        try:
-            texts = _extract_with_pypdf(path, max_pages=max_pages)
-            logger.info("extracted with pypdf: pages=%d path=%s", len(texts), path)
-            return texts
-        except Exception as e:
-            if provider == "pypdf":
-                raise
-            logger.warning("pypdf failed (%s). fallback to pdfminer: %s", type(e).__name__, path)
-
-    # fallback or explicit pdfminer
-    texts = _extract_with_pdfminer(path, max_pages=max_pages)
-    logger.info("extracted with pdfminer: pages=%d path=%s", len(texts), path)
-    return texts
-
-
-def is_scanned_heuristic(path: str, sample_pages: int = 5) -> bool:
-    """
-    Heuristic: consider as scanned if >= 50% of sampled pages have zero-length text.
-    """
+def extract_pages_with_pypdf(pdf_path: Path):
     try:
-        texts = extract_text_per_page(path, max_pages=sample_pages, provider="auto")
-    except Exception:
-        return False
-    if not texts:
-        return False
-    zero = sum(1 for t in texts if not t.strip())
-    return (zero / len(texts)) >= 0.5
+        from pypdf import PdfReader
+    except Exception as e:
+        raise RuntimeError(
+            "pypdf が見つからないか読み込みに失敗しました。`poetry add pypdf` を実行してください。"
+        ) from e
+    reader = PdfReader(str(pdf_path))
+    pages = []
+    for i, page in enumerate(reader.pages):
+        try:
+            text = page.extract_text() or ""
+        except Exception:
+            text = ""
+        pages.append({"page": i + 1, "text": text})
+    return pages
 
+def main():
+    p = argparse.ArgumentParser(description="PDF をページごとにテキスト抽出して JSON 出力します。")
+    p.add_argument("pdf", help="入力PDFパス")
+    p.add_argument("-o","--output", help="出力JSONパス（未指定なら <pdf名>.json）")
+    p.add_argument("--stdout", action="store_true", help="標準出力にJSONを出す（ファイルは書かない）")
+    p.add_argument("-v","--verbose", action="store_true", help="詳細ログ")
+    args = p.parse_args()
 
-def ocr_pages_stub(path: str, lang: str = "jpn"):
-    """
-    Placeholder for future OCR integration (e.g., Tesseract/Cloud OCR).
-    """
-    raise NotImplementedError("OCR not implemented yet; this is a stub.")
+    setup_logger(args.verbose)
 
+    pdf_path = Path(args.pdf)
+    if not pdf_path.exists():
+        logging.error("PDFが見つかりません: %s", pdf_path)
+        return 2
+
+    logging.info("抽出開始: %s", pdf_path)
+    pages = extract_pages_with_pypdf(pdf_path)
+    num_pages = len(pages)
+    logging.info("抽出完了: %dページ", num_pages)
+
+    result = {
+        "source_pdf": str(pdf_path),
+        "num_pages": num_pages,
+        "pages": pages,
+        "extractor_version": EXTRACTOR_VERSION,
+        "extracted_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
+
+    if args.stdout:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        out_path = Path(args.output) if args.output else pdf_path.with_suffix(".json")
+        out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        logging.info("JSONを書き出しました: %s", out_path)
+
+    return 0
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as e:
+        logging.exception("抽出中にエラー: %s", e)
+        sys.exit(1)
