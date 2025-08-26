@@ -1,0 +1,57 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*$py.class
+
+# C extensions
+*.so
+
+# ---- Virtualenv / Poetry ----
+.venv/
+env/
+venv/
+.poetry/
+poetry.lock
+
+# ---- Distribution / Packaging ----
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.wheel/
+
+# ---- Unit test / coverage ----
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+*.hypothesis/
+.pytest_cache/
+
+# ---- Jupyter Notebook ----
+.ipynb_checkpoints
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- OS / Misc ----
+.DS_Store
+Thumbs.db
+
+# ---- Project specific ----
+# サンプルデータは追跡が必要なら除外しないでください
+crawler/sample/*.json
+
