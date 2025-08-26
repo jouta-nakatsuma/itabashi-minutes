@@ -1,0 +1,56 @@
+{
+  "meeting_date": "2025-08-21",
+  "committee": "文教児童委員会",
+  "page_url": "https://example.local/itabashi/minutes/2025-08-21-bunkyo",
+  "pdf_url": "https://example.local/itabashi/minutes/sample.pdf",
+  "agenda_items": [
+    {
+      "title": "【議題１ 教育行政について】",
+      "order_no": 1,
+      "speeches": [
+        {
+          "speaker": "中妻穣太",
+          "role": "委員",
+          "paragraphs": [
+            "お伺いします。\n続けて質問します。"
+          ]
+        },
+        {
+          "speaker": "教育長",
+          "role": "教育長",
+          "paragraphs": [
+            "ご答弁いたします。\n対応します。"
+          ]
+        },
+        {
+          "speaker": "理事者",
+          "role": "理事者",
+          "paragraphs": [
+            "補足します。"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "【議題２ 学校給食について】",
+      "order_no": 2,
+      "speeches": [
+        {
+          "speaker": "田中太郎",
+          "role": "議員",
+          "paragraphs": [
+            "給食無償化について。\n継続審議とするべきでは。"
+          ]
+        },
+        {
+          "speaker": "委員長",
+          "role": "委員長",
+          "paragraphs": [
+            "次に進みます。"
+          ]
+        }
+      ]
+    }
+  ]
+}
+
