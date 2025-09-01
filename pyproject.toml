@@ -45,6 +45,9 @@ wordcloud = "^1.9.2"
 jsonschema = "^4.23.0"
 python-dotenv = "^1.0.0"
 pypdf = "^6.0.0"
+fastapi = "^0.110.0"
+uvicorn = { version = "^0.29.0", extras = ["standard"] }
+pydantic = "^2.9"
 
 [tool.poetry.group.app]
 optional = true
