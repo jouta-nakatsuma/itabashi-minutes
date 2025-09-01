@@ -9,6 +9,7 @@ from typing import Iterable, List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 import uvicorn
+import re
 
 DB_PATH: Optional[Path] = None
 
@@ -40,16 +41,15 @@ def normalize_fts_query(q: str) -> str:
         return raw
     # escape quotes
     safe = raw.replace('"', '""')
-    # keep expert syntax
-    if " OR " in safe or " or " in safe or safe.startswith('"') or safe.endswith('"'):
-        return safe
-    # split on ASCII/Full-width spaces
-    tokens = [t for t in safe.replace("\u3000", " ").split() if t]
-    if not tokens:
-        return safe
-    if len(tokens) == 1:
-        return tokens[0]
-    return " AND ".join(tokens)
+    # if OR is present, respect it but normalize whitespace
+    if re.search(r"\bOR\b", safe, flags=re.IGNORECASE):
+        return re.sub(r"\s+", " ", safe)
+    # remove explicit AND operators (treat as implicit AND via whitespace)
+    safe = re.sub(r"\bAND\b", " ", safe, flags=re.IGNORECASE)
+    # split on ASCII/Full-width spaces and collapse
+    tokens = re.split(r"[\s\u3000]+", safe)
+    tokens = [t for t in tokens if t]
+    return " ".join(tokens)
 
 
 class SearchItem(BaseModel):
