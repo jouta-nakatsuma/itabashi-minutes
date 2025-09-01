@@ -129,9 +129,9 @@ def create_app(db_path: str) -> FastAPI:
             total_sql = """
             WITH matched AS (
               SELECT sp.minutes_id AS mid
-              FROM speeches_fts sfts
-              JOIN speeches sp ON sp.id = sfts.rowid
-              WHERE sfts MATCH :q
+              FROM speeches_fts
+              JOIN speeches sp ON sp.id = speeches_fts.rowid
+              WHERE speeches_fts MATCH :q
               GROUP BY sp.minutes_id
             )
             SELECT COUNT(*) AS cnt
@@ -149,9 +149,9 @@ def create_app(db_path: str) -> FastAPI:
               SELECT sp.minutes_id AS mid,
                      COUNT(*) AS hits,
                      MIN(sp.id) AS first_sp_id
-              FROM speeches_fts sfts
-              JOIN speeches sp ON sp.id = sfts.rowid
-              WHERE sfts MATCH :q
+              FROM speeches_fts
+              JOIN speeches sp ON sp.id = speeches_fts.rowid
+              WHERE speeches_fts MATCH :q
               GROUP BY sp.minutes_id
             )
             SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
