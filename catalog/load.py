@@ -84,10 +84,12 @@ def load_file(conn: sqlite3.Connection, path: Path) -> Tuple[bool, bool]:
     obj = json.loads(path.read_text(encoding="utf-8"))
     ms = extract_minutes_structure(obj)
 
-    # Flatten fields
+    # Flatten fields and counts
     total_wc = 0
+    total_speeches = 0
     for ai in ms.agenda_items:
         for sp in ai.speeches:
+            total_speeches += 1
             total_wc += sum(len(p) for p in (sp.paragraphs or []))
     minutes_row = {
         "meeting_date": ms.meeting_date,
@@ -102,8 +104,25 @@ def load_file(conn: sqlite3.Connection, path: Path) -> Tuple[bool, bool]:
     try:
         minutes_id, created = upsert_minutes(conn, minutes_row)
         if not created:
-            conn.execute("ROLLBACK")
-            return False, True
+            # If duplicate exists but current record has speeches, refresh its content
+            if total_speeches > 0:
+                # purge existing agenda/speeches and update minutes metadata
+                conn.execute("DELETE FROM speeches WHERE minutes_id = ?", (minutes_id,))
+                conn.execute("DELETE FROM agenda_items WHERE minutes_id = ?", (minutes_id,))
+                conn.execute(
+                    "UPDATE minutes SET meeting_date=?, committee=?, title=?, pdf_url=?, word_count=? WHERE id=?",
+                    (
+                        minutes_row["meeting_date"],
+                        minutes_row["committee"],
+                        minutes_row["title"],
+                        minutes_row["pdf_url"],
+                        minutes_row["word_count"],
+                        minutes_id,
+                    ),
+                )
+            else:
+                conn.execute("ROLLBACK")
+                return False, True
 
         # agenda_items -> speeches
         for ai in ms.agenda_items:
