@@ -148,54 +148,49 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
     applied = 0
     skipped = 0
 
-    def find_context(start_idx: int, ctx: List[str]) -> Optional[int]:
-        # strict match first
-        if start_idx - 1 < len(new_lines) and new_lines[start_idx - 1 : start_idx - 1 + len(ctx)] == ctx:
-            return start_idx - 1
-        if fuzz <= 0:
-            return None
-        # fuzzy search within ±fuzz lines
-        window = range(max(0, start_idx - 1 - fuzz), min(len(new_lines), start_idx - 1 + fuzz + 1))
-        for i in window:
-            if new_lines[i : i + len(ctx)] == ctx:
-                return i
+    def find_block(block: List[str], preferred: int) -> Optional[int]:
+        """Find exact occurrence of block in new_lines, try preferred index, then fuzzy window, then fail."""
+        # try preferred exact
+        if 0 <= preferred <= len(new_lines) - len(block) and new_lines[preferred : preferred + len(block)] == block:
+            return preferred
+        # fuzzy window
+        if fuzz > 0:
+            start = max(0, preferred - fuzz)
+            end = min(len(new_lines), preferred + fuzz + 1)
+            for i2 in range(start, end):
+                if 0 <= i2 <= len(new_lines) - len(block) and new_lines[i2 : i2 + len(block)] == block:
+                    return i2
         return None
 
     for h in patch.hunks:
-        # build expected context and operations
-        ctx: List[str] = [l[1:] for l in h.lines if l.startswith(" ")]
-        plus: List[str] = [l[1:] for l in h.lines if l.startswith("+")]
-        idx = find_context(h.old_start, ctx)
+        # Build old/new segments per unified diff semantics
+        old_block: List[str] = []  # lines from ' ' and '-'
+        new_block: List[str] = []  # lines from ' ' and '+'
+        for hline in h.lines:
+            if hline.startswith(" "):
+                line = hline[1:]
+                old_block.append(line)
+                new_block.append(line)
+            elif hline.startswith("-"):
+                old_block.append(hline[1:])
+            elif hline.startswith("+"):
+                new_block.append(hline[1:])
+        preferred_idx = max(0, h.old_start - 1)
+        idx = find_block(old_block, preferred_idx)
         if idx is None:
             skipped += 1
             continue
-        # verify minus lines match following the context
-        minus_block: List[str] = []
-        for hline in h.lines:
-            if hline.startswith("-"):
-                minus_block.append(hline[1:])
-            elif hline.startswith(" ") and minus_block:
-                break
-        # compute edit range
-        edit_start = idx
-        edit_end = idx + len(ctx)
-        # remove minus where they appear after context
-        # remove minus lines immediately after context in file
-        after_idx = edit_end
-        for m in minus_block:
-            if after_idx < len(new_lines) and new_lines[after_idx] == m:
-                del new_lines[after_idx]
-        # insert plus lines after context
-        insert_pos = edit_start + len(ctx)
-        for p in plus:
-            new_lines.insert(insert_pos, p)
-            insert_pos += 1
+        # Replace old block with new block
+        new_lines[idx : idx + len(old_block)] = new_block
         applied += 1
 
     # Decide if already applied (no change)
     final_text = (eol.join(new_lines) + (eol if new_lines else ""))
     final = (b"\xef\xbb\xbf" if bom else b"") + final_text.encode("utf-8")
     if original_bytes == final:
+        # If nothing applied and something was skipped -> not already applied.
+        if applied == 0 and skipped > 0:
+            return ApplyResult(path=path, applied_hunks=0, skipped_hunks=skipped, already_applied=False)
         # Normalize: already applied means skipped=0
         return ApplyResult(path=path, applied_hunks=applied, skipped_hunks=0, already_applied=True)
     if dry_run:
