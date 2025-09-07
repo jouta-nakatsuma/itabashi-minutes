@@ -82,6 +82,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 itabashi-crawler = "crawler.cli:main"
 itabashi-normalizer = "ingest.text_normalizer:main"
+catalog-load = "catalog.load:main"
+api-serve = "api.main:serve"
 
 [tool.black]
 line-length = 88

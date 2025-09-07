@@ -4,6 +4,23 @@
 - Python 3.11 推奨。Poetry で依存導入: `poetry install --only main,dev`
 - 実行前に robots.txt とアクセス制御を遵守してください（1 req/sec + ジッター、夜間実行推奨）。
 
+## Quick Start（fixturesで最短起動 / Copy & paste OK）
+```bash
+# 1) DB作成（空）
+rm -f var/minutes.db && mkdir -p var
+sqlite3 var/minutes.db < catalog/schema.sql
+
+# 2) カタログにfixturesを投入
+poetry run catalog-load --db var/minutes.db --src tests/fixtures
+
+# 3) API起動
+poetry run api-serve --db var/minutes.db --host 127.0.0.1 --port 8000
+# 4) 動作確認（別ターミナルから）
+curl "http://127.0.0.1:8000/search?q=高島平"
+curl "http://127.0.0.1:8000/search?committee=文教児童委員会&date_from=2025-08-01&date_to=2025-08-31"
+curl "http://127.0.0.1:8000/document/1"
+```
+
 ## Configuration
 - `.env`（任意）: `REQUEST_DELAY=1.0`, `MAX_PAGES=2`, `MAX_ITEMS=50`, `RETRIES=3`, `TIMEOUT_CONNECT=10`, `TIMEOUT_READ=30`, `BACKOFF_BASE=1.0`, `BACKOFF_MAX=30.0`, `USER_AGENT="ItabashiMinutesBot/0.1 (+contact)"`, `BASE_URL=https://www.city.itabashi.tokyo.jp`, `ALLOW_PATTERN=^https?://[^/]+/gikai/kaigiroku/.*`, `DENY_PATTERNS=\.zip$,\.csv$`
 - URL制約: 許可リスト `^https?://[^/]+/gikai/kaigiroku/.*`、DENYは `.zip,.csv` など。
@@ -26,6 +43,14 @@
 - スキーマ適用＋JSON取り込み:  
   `poetry run python scripts/rebuild_catalog.py --db var/minutes.db --src data/normalized/ --fresh --verbose`
 - `--src` に JSON が無い場合は `tests/fixtures` をフォールバックとして使用します。
+
+## Lint / Type / Format
+```bash
+poetry run black .
+poetry run mypy .
+# Ruff 導入済みなら:
+poetry run ruff check .
+```
 
 ## Test
 - 単体テスト: `poetry run pytest -q`
