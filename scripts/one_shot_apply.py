@@ -185,8 +185,12 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
         trailing_minus = [ln[1:] for ln in trailing if ln.startswith("-")]
         trailing_plus = [ln[1:] for ln in trailing if ln.startswith("+")]
 
-        # find context block in file
-        preferred_idx = max(0, h.old_start - 1)
+        # find context block in file; compute old-file offset to first context
+        old_offset = 0
+        for ln in h.lines[:first_s]:
+            if ln.startswith(" ") or ln.startswith("-"):
+                old_offset += 1
+        preferred_idx = max(0, (h.old_start - 1) + old_offset)
         idx = find_block(ctx, preferred_idx)
         if idx is None:
             skipped += 1
@@ -211,6 +215,14 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
         replace_end = after_ctx + len(trailing_minus)
         before_slice = new_lines[replace_start:replace_end]
         after_slice = leading_plus + ctx + trailing_plus
+
+        # Idempotence guard: if plus lines already present around context, skip
+        already_left = (leading_plus == new_lines[lead_start:idx])
+        already_right = (trailing_plus == new_lines[after_ctx:after_ctx + len(trailing_plus)])
+        if already_left and already_right:
+            # nothing to do for this hunk
+            continue
+
         if before_slice != after_slice:
             new_lines[replace_start:replace_end] = after_slice
             applied += 1
