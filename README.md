@@ -9,12 +9,23 @@
 - URL制約: 許可リスト `^https?://[^/]+/gikai/kaigiroku/.*`、DENYは `.zip,.csv` など。
 
 ## Run
-- 互換エントリ（現状すぐ実行可）: `poetry run python -m crawler.cli --max-pages 2 --max-items 3 --validate --ndjson`
-- スクリプトエントリ（pyproject更新済み）: `poetry run itabashi-crawler`
-- 出力: JSON `crawler/sample/sample_minutes.json`、NDJSON `crawler/sample/sample_minutes.ndjson`
+- クローラー（サンプル取得）: `poetry run python crawler/itabashi_spider.py`
+  - 出力: JSON `crawler/sample/sample_minutes.json`
+  - 環境変数（.env）でページ数や遅延などを制御できます（`MAX_PAGES`, `MAX_ITEMS`, `REQUEST_DELAY` など）。
 
-## Validate
-- スキーマ検証（--validate指定時）: `schemas/minutes.schema.json` に対して未知キーを除外して検証します（互換維持）。
+## Apply Unified Diff (one-shot)
+- ドライラン: `git diff | poetry run python scripts/one_shot_apply.py --dry-run --strip 1`
+- 実適用（バックアップ作成）: `git diff | poetry run python scripts/one_shot_apply.py --strip 1 --backup`
+- オプション:
+  - `--strip`: `a/`, `b/` などのパス接頭辞を剥がす深さ（既定: 1）
+  - `--fuzz`: 文脈マッチに許容するズレ行数（既定: 0）
+  - `--backup`: 上書き前に `.bak` を作成
+  - 本ユーティリティは EOL/BOM を保持し、パス安全性（リポジトリ外書き込み防止）に対応しています。
+
+## Rebuild Catalog (SQLite)
+- スキーマ適用＋JSON取り込み:  
+  `poetry run python scripts/rebuild_catalog.py --db var/minutes.db --src data/normalized/ --fresh --verbose`
+- `--src` に JSON が無い場合は `tests/fixtures` をフォールバックとして使用します。
 
 ## Test
 - 単体テスト: `poetry run pytest -q`

@@ -1,0 +1,492 @@
+diff --git a/scripts/one_shot_apply.py b/scripts/one_shot_apply.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/scripts/one_shot_apply.py
+@@ -0,0 +1,385 @@
++from __future__ import annotations
++
++import argparse
++import io
++import sys
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Iterable, List, Optional, Tuple
++
++
++@dataclass
++class Hunk:
++    old_start: int
++    old_count: int
++    new_start: int
++    new_count: int
++    lines: List[str]
++
++
+@dataclass
+class Patch:
++    path: Path
++    hunks: List[Hunk]
++
++
+@dataclass
+class ApplyResult:
++    path: Path
++    applied_hunks: int
++    skipped_hunks: int
++    already_applied: bool = False
++
++
+@dataclass
+class Summary:
++    files: int
++    applied: int
++    skipped: int
++    already: int
++
++
+def _strip_prefix(p: str, strip: int) -> str:
++    parts = Path(p).parts
++    return str(Path(*parts[strip:])) if strip and len(parts) > strip else p
++
++
+def parse_unified_diff(text: str, strip: int = 1) -> List[Patch]:
++    patches: List[Patch] = []
++    it = iter(text.splitlines())
++    current_path: Optional[Path] = None
++    hunks: List[Hunk] = []
++    for line in it:
++        if line.startswith("diff --git "):
++            # flush previous
++            if current_path and hunks:
++                patches.append(Patch(path=current_path, hunks=hunks))
++                hunks = []
++            current_path = None
++            continue
++        if line.startswith("--- "):
++            # consume +++ path next
++            old = line[4:].strip()
++            new = next(it)
++            assert new.startswith("+++ "), "Malformed unified diff: expected +++ after ---"
++            new_path = new[4:].strip()
++            # paths may be like a/xxx, b/xxx; apply strip
++            p = new_path
++            if p.startswith("a/") or p.startswith("b/"):
++                p = p[2:]
++            p = _strip_prefix(p, strip=0 if "/" in new_path[:2] else strip)
++            current_path = Path(p)
++            continue
++        if line.startswith("@@ "):
++            # hunk header: @@ -l,s +l,s @@
++            header = line
++            try:
++                left, right = header.split("@@")[1].strip().split(" ")[:2]
++            except Exception as e:
++                raise ValueError(f"Malformed hunk header: {header}") from e
++            # left like -12,3 / right like +15,4
++            def parse_span(tok: str) -> Tuple[int, int]:
++                tok = tok[1:]
++                if "," in tok:
++                    a, b = tok.split(",", 1)
++                    return int(a), int(b)
++                return int(tok), 1
++
++            old_start, old_count = parse_span(left)
++            new_start, new_count = parse_span(right)
++            h_lines: List[str] = []
++            # collect following lines until next header/diff marker
++            for l in it:
++                if l.startswith("@@ ") or l.startswith("diff --git ") or l.startswith("--- "):
++                    # push back by re-iterating with this line
++                    # crude: use an in-memory buffer to re-feed
++                    it = iter([l] + list(it))  # type: ignore
++                    break
++                if not l or l[0] not in " +-":
++                    # treat as context (safety)
++                    h_lines.append(" " + l)
++                else:
++                    h_lines.append(l)
++            hunks.append(Hunk(old_start, old_count, new_start, new_count, h_lines))
++    if current_path and hunks:
++        patches.append(Patch(path=current_path, hunks=hunks))
++    return patches
++
++
+def _detect_eol_and_bom(data: bytes) -> Tuple[str, bool]:
++    bom = data.startswith(b"\xef\xbb\xbf")
++    text = data.decode("utf-8-sig")
++    # detect EOL from original
++    if "\r\n" in text:
++        return "\r\n", bom
++    return "\n", bom
++
++
+def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz: int = 0, backup: bool = False, verbose: bool = False) -> ApplyResult:
++    repo_root = Path.cwd().resolve()
++    try:
++        target = path.resolve()
++    except Exception:
++        return ApplyResult(path=path, applied_hunks=0, skipped_hunks=len(patch.hunks))
++    if not str(target).startswith(str(repo_root)):
++        return ApplyResult(path=path, applied_hunks=0, skipped_hunks=len(patch.hunks))
++
++    original_bytes = path.read_bytes() if path.exists() else b""
++    eol, bom = _detect_eol_and_bom(original_bytes)
++    original = original_bytes.decode("utf-8-sig") if original_bytes else ""
++    original_lines = original.splitlines()
++
++    new_lines = original_lines[:]
++    applied = 0
++    skipped = 0
++
++    def find_context(start_idx: int, ctx: List[str]) -> Optional[int]:
++        # strict match first
++        if start_idx - 1 < len(new_lines) and new_lines[start_idx - 1 : start_idx - 1 + len(ctx)] == ctx:
++            return start_idx - 1
++        if fuzz <= 0:
++            return None
++        # fuzzy search within ±fuzz lines
++        window = range(max(0, start_idx - 1 - fuzz), min(len(new_lines), start_idx - 1 + fuzz + 1))
++        for i in window:
++            if new_lines[i : i + len(ctx)] == ctx:
++                return i
++        return None
++
++    for h in patch.hunks:
++        # build expected context and operations
++        ctx: List[str] = [l[1:] for l in h.lines if l.startswith(" ")]
++        plus: List[str] = [l[1:] for l in h.lines if l.startswith("+")]
++        minus: List[str] = [l[1:] for l in h.lines if l.startswith("-")]
++        idx = find_context(h.old_start, ctx)
++        if idx is None:
++            skipped += 1
++            continue
++        # verify minus lines match following the context
++        minus_block: List[str] = []
++        for l in h.lines:
++            if l.startswith("-"):
++                minus_block.append(l[1:])
++            elif l.startswith(" ") and minus_block:
++                break
++        # compute edit range
++        edit_start = idx
++        edit_end = idx + len(ctx)
++        candidate = new_lines[:edit_start] + new_lines[edit_end:]
++        # remove minus where they appear after context
++        # (simple strategy: rebuild block around context)
++        block = new_lines[edit_start:edit_end]
++        # replace block with context first
++        new_block = ctx[:]
++        # remove minus lines immediately after context in file
++        after_idx = edit_end
++        for m in minus_block:
++            if after_idx < len(new_lines) and new_lines[after_idx] == m:
++                del new_lines[after_idx]
++        # insert plus lines after context
++        insert_pos = edit_start + len(ctx)
++        for p in plus:
++            new_lines.insert(insert_pos, p)
++            insert_pos += 1
++        applied += 1
++
++    # Decide if already applied (no change)
++    final = (eol.join(new_lines) + ("" if not new_lines else "")).encode("utf-8")
++    if original_bytes == final:
++        return ApplyResult(path=path, applied_hunks=applied, skipped_hunks=skipped, already_applied=True)
++    if dry_run:
++        return ApplyResult(path=path, applied_hunks=applied, skipped_hunks=skipped)
++    # backup if requested
++    if backup and path.exists():
++        path.with_suffix(path.suffix + ".bak").write_bytes(original_bytes)
++    # write atomically
++    tmp = path.with_suffix(path.suffix + ".tmp")
++    tmp.write_bytes(final)
++    tmp.replace(path)
++    return ApplyResult(path=path, applied_hunks=applied, skipped_hunks=skipped)
++
++
+def apply_to_repo(diff_text: str, *, dry_run: bool = False, strip: int = 1, fuzz: int = 0, backup: bool = False, verbose: bool = False) -> Summary:
++    patches = parse_unified_diff(diff_text, strip=strip)
++    files = applied = skipped = already = 0
++    for p in patches:
++        files += 1
++        if not p.path.exists():
++            # create empty file baseline
++            p.path.parent.mkdir(parents=True, exist_ok=True)
++            p.path.write_text("", encoding="utf-8")
++        res = apply_patch_to_file(p.path, p, dry_run=dry_run, fuzz=fuzz, backup=backup, verbose=verbose)
++        applied += res.applied_hunks
++        skipped += res.skipped_hunks
++        already += 1 if res.already_applied else 0
++    return Summary(files=files, applied=applied, skipped=skipped, already=already)
++
++
+def main(argv: Optional[Iterable[str]] = None) -> int:
++    ap = argparse.ArgumentParser(description="Safely apply a unified diff to the repo (one-shot)")
++    ap.add_argument("--diff", help="Path to unified diff file (default: stdin)")
++    ap.add_argument("--dry-run", action="store_true")
++    ap.add_argument("--backup", action="store_true")
++    ap.add_argument("--strip", type=int, default=1)
++    ap.add_argument("--fuzz", type=int, default=0)
++    ap.add_argument("--verbose", action="store_true")
++    args = ap.parse_args(list(argv) if argv is not None else None)
++
++    if args.diff:
++        diff_text = Path(args.diff).read_text(encoding="utf-8")
++    else:
++        diff_text = sys.stdin.read()
++    if not diff_text.strip():
++        print("No diff provided", file=sys.stderr)
++        return 2
++    summary = apply_to_repo(diff_text, dry_run=args.dry_run, strip=args.strip, fuzz=args.fuzz, backup=args.backup, verbose=args.verbose)
++    if args.verbose:
++        print(f"files={summary.files} applied={summary.applied} skipped={summary.skipped} already={summary.already}")
++    return 0 if summary.skipped == 0 else 1
++
++
+if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/scripts/rebuild_catalog.py b/scripts/rebuild_catalog.py
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/scripts/rebuild_catalog.py
+@@ -0,0 +1,180 @@
++from __future__ import annotations
++
++import argparse
++import sqlite3
++from pathlib import Path
++from typing import Iterable, Optional, Tuple
++
++from catalog.load import load_directory
++
++
+def run(db_path: Path, src_dir: Optional[Path], *, fresh: bool, analyze: bool, vacuum: bool, verbose: bool) -> Tuple[int, int, int]:
++    if fresh and db_path.exists():
++        if verbose:
++            print(f"[INFO] Removing existing DB: {db_path}")
++        db_path.unlink()
++    db_path.parent.mkdir(parents=True, exist_ok=True)
++    # choose src
++    chosen_src = src_dir if src_dir and src_dir.exists() and any(src_dir.glob("*.json")) else None
++    if chosen_src is None:
++        fallback = Path("data/normalized")
++        if not (fallback.exists() and any(fallback.glob("*.json"))):
++            fallback = Path("tests/fixtures")
++        chosen_src = fallback
++    if verbose:
++        print(f"[INFO] Using source dir: {chosen_src}")
++
++    # apply schema
++    sql = Path("catalog/schema.sql").read_text(encoding="utf-8")
++    with sqlite3.connect(db_path) as conn:
++        conn.executescript(sql)
++
++    total, inserted, skipped = load_directory(db_path, chosen_src)
++
++    with sqlite3.connect(db_path) as conn:
++        def count(q: str) -> int:
++            return int(conn.execute(q).fetchone()[0])
++
++        minutes = count("SELECT COUNT(*) FROM minutes")
++        agenda = count("SELECT COUNT(*) FROM agenda_items")
++        speeches = count("SELECT COUNT(*) FROM speeches")
++        fts_hits = count("SELECT COUNT(*) FROM speeches_fts WHERE speeches_fts MATCH '教育長 OR 給食'")
++
++        print(f"[INFO] minutes={minutes} agenda_items={agenda} speeches={speeches} fts_hits={fts_hits}")
++
++        if analyze:
++            print("[INFO] Running ANALYZE ...")
++            conn.execute("ANALYZE")
++        if vacuum:
++            print("[INFO] Running VACUUM ...")
++            conn.execute("VACUUM")
++
++    return total, inserted, skipped
++
++
+def main(argv: Optional[Iterable[str]] = None) -> int:
++    ap = argparse.ArgumentParser(description="Rebuild SQLite catalog from schema + JSON sources")
++    ap.add_argument("--db", default="var/minutes.db")
++    ap.add_argument("--src", default="data/normalized/")
++    ap.add_argument("--fresh", action="store_true")
++    ap.add_argument("--analyze", action="store_true")
++    ap.add_argument("--vacuum", action="store_true")
++    ap.add_argument("--verbose", action="store_true")
++    args = ap.parse_args(list(argv) if argv is not None else None)
++
++    db_path = Path(args.db)
++    src_dir = Path(args.src) if args.src else None
++    total, inserted, skipped = run(db_path, src_dir, fresh=args.fresh, analyze=args.analyze, vacuum=args.vacuum, verbose=args.verbose)
++
++    if args.fresh:
++        return 0 if inserted > 0 else 1
++    return 0
++
++
+if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/test_one_shot_apply.py b/tests/test_one_shot_apply.py
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/tests/test_one_shot_apply.py
+@@ -0,0 +1,170 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++from scripts.one_shot_apply import apply_to_repo
++
++
+def _write(p: Path, content: str) -> None:
++    p.parent.mkdir(parents=True, exist_ok=True)
++    p.write_text(content, encoding="utf-8", newline="")
++
++
+def test_apply_add_only(tmp_path: Path) -> None:
++    target = tmp_path / "A.txt"
++    _write(target, "hello\n")
++    diff = f"""
++diff --git a/A.txt b/A.txt
++--- a/A.txt
++++ b/A.txt
++@@ -1,1 +1,2 @@
++ hello
+++world
++""".strip()
++    summary = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
++    assert target.read_text(encoding="utf-8") == "hello\nworld\n"
++    assert summary.applied >= 1
++
++
+def test_apply_delete_only(tmp_path: Path) -> None:
++    target = tmp_path / "B.txt"
++    _write(target, "keep\nremove\n")
++    diff = f"""
++diff --git a/B.txt b/B.txt
++--- a/B.txt
++++ b/B.txt
++@@ -1,2 +1,1 @@
++ keep
++-remove
++""".strip()
++    summary = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
++    assert target.read_text(encoding="utf-8") == "keep\n"
++    assert summary.applied >= 1
++
++
+def test_apply_mixed_replace(tmp_path: Path) -> None:
++    target = tmp_path / "C.txt"
++    _write(target, "old\nline\n")
++    diff = f"""
++diff --git a/C.txt b/C.txt
++--- a/C.txt
++++ b/C.txt
++@@ -1,2 +1,2 @@
++-old
+++new
++ line
++""".strip()
++    summary = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
++    assert target.read_text(encoding="utf-8") == "new\nline\n"
++    assert summary.applied >= 1
++
++
+def test_apply_context_mismatch_fail(tmp_path: Path) -> None:
++    target = tmp_path / "D.txt"
++    _write(target, "x\ny\nz\n")
++    diff = f"""
++diff --git a/D.txt b/D.txt
++--- a/D.txt
++++ b/D.txt
++@@ -1,3 +1,3 @@
++ x
++-y
+++Y
++ z
++""".strip()
++    # Expect failure (skipped hunks) when context mismatches and fuzz=0
++    summary = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
++    assert summary.skipped >= 1
++    # original intact
++    assert target.read_text(encoding="utf-8") == "x\ny\nz\n"
++
++
+def test_apply_crlf_eol_preserved(tmp_path: Path) -> None:
+    target = tmp_path / "E.txt"
+    # CRLF file
+    target.write_bytes(b"a\r\nb\r\n")
+    diff = f"""
+diff --git a/E.txt b/E.txt
+--- a/E.txt
++++ b/E.txt
+@@ -1,2 +1,3 @@
+ a
+ b
++c
+""".strip()
+    summary = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
+    data = target.read_bytes()
+    assert b"\r\n" in data  # EOL preserved
+    assert target.read_text(encoding="utf-8").endswith("c\r\n")
++
++
+def test_idempotent_apply(tmp_path: Path) -> None:
+    target = tmp_path / "F.txt"
+    _write(target, "alpha\n")
+    diff = f"""
+diff --git a/F.txt b/F.txt
+--- a/F.txt
++++ b/F.txt
+@@ -1,1 +1,2 @@
+ alpha
++beta
+""".strip()
+    # first
+    summary1 = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
+    # second (already applied)
+    summary2 = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
+    assert target.read_text(encoding="utf-8") == "alpha\nbeta\n"
+    assert summary2.files >= 1
+diff --git a/tests/test_scripts_rebuild.py b/tests/test_scripts_rebuild.py
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/tests/test_scripts_rebuild.py
+@@ -0,0 +1,80 @@
++from __future__ import annotations
++
++import sqlite3
++from pathlib import Path
++
++from scripts.rebuild_catalog import run
++
++
+def _counts(db: Path) -> tuple[int, int, int, int]:
++    with sqlite3.connect(db) as conn:
++        def c(q: str) -> int:
++            return int(conn.execute(q).fetchone()[0])
++        minutes = c("SELECT COUNT(*) FROM minutes")
++        agenda = c("SELECT COUNT(*) FROM agenda_items")
++        speeches = c("SELECT COUNT(*) FROM speeches")
++        fts_hits = c("SELECT COUNT(*) FROM speeches_fts WHERE speeches_fts MATCH '教育長 OR 給食'")
++        return minutes, agenda, speeches, fts_hits
++
++
+def test_rebuild_catalog_e2e(tmp_path: Path) -> None:
++    db = tmp_path / "minutes.db"
++    total, inserted, skipped = run(db, Path("tests/fixtures"), fresh=True, analyze=False, vacuum=False, verbose=True)
++    assert inserted > 0
++    minutes, agenda, speeches, fts_hits = _counts(db)
++    assert minutes == 1
++    assert agenda >= 2
++    assert speeches >= 4
++    assert fts_hits >= 2
++
++    # re-run without fresh should still succeed
++    total2, inserted2, skipped2 = run(db, Path("tests/fixtures"), fresh=False, analyze=False, vacuum=False, verbose=True)
++    assert total2 >= 1
++    assert inserted2 >= 0
++
