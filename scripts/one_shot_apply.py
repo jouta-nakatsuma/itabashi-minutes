@@ -163,26 +163,57 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
         return None
 
     for h in patch.hunks:
-        # Build old/new segments per unified diff semantics
-        old_block: List[str] = []  # lines from ' ' and '-'
-        new_block: List[str] = []  # lines from ' ' and '+'
-        for hline in h.lines:
-            if hline.startswith(" "):
-                line = hline[1:]
-                old_block.append(line)
-                new_block.append(line)
-            elif hline.startswith("-"):
-                old_block.append(hline[1:])
-            elif hline.startswith("+"):
-                new_block.append(hline[1:])
+        # Separate hunk into leading changes, contiguous context, trailing changes.
+        # Only support a single contiguous block of ' ' context lines.
+        space_idx = [i for i, ln in enumerate(h.lines) if ln.startswith(" ")]
+        if not space_idx:
+            # no context support in this minimal applier
+            skipped += 1
+            continue
+        first_s = min(space_idx)
+        last_s = max(space_idx)
+        # if ' ' lines are not contiguous, skip (unsupported pattern)
+        if last_s - first_s + 1 != len(space_idx):
+            skipped += 1
+            continue
+        ctx = [h.lines[i][1:] for i in range(first_s, last_s + 1)]
+        leading = h.lines[:first_s]
+        trailing = h.lines[last_s + 1 :]
+
+        leading_minus = [ln[1:] for ln in leading if ln.startswith("-")]
+        leading_plus = [ln[1:] for ln in leading if ln.startswith("+")]
+        trailing_minus = [ln[1:] for ln in trailing if ln.startswith("-")]
+        trailing_plus = [ln[1:] for ln in trailing if ln.startswith("+")]
+
+        # find context block in file
         preferred_idx = max(0, h.old_start - 1)
-        idx = find_block(old_block, preferred_idx)
+        idx = find_block(ctx, preferred_idx)
         if idx is None:
             skipped += 1
             continue
-        # Replace old block with new block
-        new_lines[idx : idx + len(old_block)] = new_block
-        applied += 1
+
+        lead_start = idx - len(leading_minus)
+        if lead_start < 0:
+            skipped += 1
+            continue
+        # verify leading minus matches
+        if leading_minus and new_lines[lead_start:idx] != leading_minus:
+            skipped += 1
+            continue
+        # verify trailing minus matches
+        after_ctx = idx + len(ctx)
+        if trailing_minus and new_lines[after_ctx:after_ctx + len(trailing_minus)] != trailing_minus:
+            skipped += 1
+            continue
+
+        # compute replacement slice and content
+        replace_start = lead_start
+        replace_end = after_ctx + len(trailing_minus)
+        before_slice = new_lines[replace_start:replace_end]
+        after_slice = leading_plus + ctx + trailing_plus
+        if before_slice != after_slice:
+            new_lines[replace_start:replace_end] = after_slice
+            applied += 1
 
     # Decide if already applied (no change)
     final_text = (eol.join(new_lines) + (eol if new_lines else ""))
