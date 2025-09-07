@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import io
 import sys
 import os
 from dataclasses import dataclass
@@ -100,13 +99,13 @@ def parse_unified_diff(text: str, strip: int = 1) -> List[Patch]:
             h_lines: List[str] = []
             # collect hunk lines
             while i < len(lines):
-                l = lines[i]
-                if l.startswith("@@ ") or l.startswith("diff --git ") or l.startswith("--- "):
+                cur = lines[i]
+                if cur.startswith("@@ ") or cur.startswith("diff --git ") or cur.startswith("--- "):
                     break
-                if not l or l[0] not in " +-":
-                    h_lines.append(" " + l)
+                if not cur or cur[0] not in " +-":
+                    h_lines.append(" " + cur)
                 else:
-                    h_lines.append(l)
+                    h_lines.append(cur)
                 i += 1
             current_hunks.append(Hunk(old_start, old_count, new_start, new_count, h_lines))
             continue
@@ -166,27 +165,21 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
         # build expected context and operations
         ctx: List[str] = [l[1:] for l in h.lines if l.startswith(" ")]
         plus: List[str] = [l[1:] for l in h.lines if l.startswith("+")]
-        minus: List[str] = [l[1:] for l in h.lines if l.startswith("-")]
         idx = find_context(h.old_start, ctx)
         if idx is None:
             skipped += 1
             continue
         # verify minus lines match following the context
         minus_block: List[str] = []
-        for l in h.lines:
-            if l.startswith("-"):
-                minus_block.append(l[1:])
-            elif l.startswith(" ") and minus_block:
+        for hline in h.lines:
+            if hline.startswith("-"):
+                minus_block.append(hline[1:])
+            elif hline.startswith(" ") and minus_block:
                 break
         # compute edit range
         edit_start = idx
         edit_end = idx + len(ctx)
-        candidate = new_lines[:edit_start] + new_lines[edit_end:]
         # remove minus where they appear after context
-        # (simple strategy: rebuild block around context)
-        block = new_lines[edit_start:edit_end]
-        # replace block with context first
-        new_block = ctx[:]
         # remove minus lines immediately after context in file
         after_idx = edit_end
         for m in minus_block:
