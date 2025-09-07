@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import contextlib, os
+import contextlib
+import os
 
 from scripts.one_shot_apply import apply_to_repo
 
@@ -129,4 +130,5 @@ diff --git a/F.txt b/F.txt
     with chdir(tmp_path):
         summary2 = apply_to_repo(diff, dry_run=False, strip=1, fuzz=0, backup=False, verbose=False)
     assert (tmp_path / "F.txt").read_text(encoding="utf-8") == "alpha\nbeta\n"
-
+    assert summary1.files >= 1
+    assert summary2.files >= 1
