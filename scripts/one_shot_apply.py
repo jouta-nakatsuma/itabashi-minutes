@@ -219,7 +219,7 @@ def apply_patch_to_file(path: Path, patch: Patch, *, dry_run: bool = False, fuzz
         # Idempotence guard: if plus lines already present around context, skip
         already_left = (leading_plus == new_lines[lead_start:idx])
         already_right = (trailing_plus == new_lines[after_ctx:after_ctx + len(trailing_plus)])
-        if already_left and already_right:
+        if (leading_plus or trailing_plus) and already_left and already_right:
             # nothing to do for this hunk
             continue
 
