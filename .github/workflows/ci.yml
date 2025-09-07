@@ -47,7 +47,7 @@ jobs:
 
     - name: Format check with black
       run: |
-        black --check --diff crawler/ ingest/
+        black --check --diff ingest catalog api scripts tests
 
   test:
     runs-on: ubuntu-latest
