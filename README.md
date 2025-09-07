@@ -52,6 +52,47 @@ poetry run mypy .
 poetry run ruff check .
 ```
 
+## Verification Cheatsheet (Sprint 2)
+
+> Copy & paste OK / fixtures-based
+
+```bash
+# 0) Lint / Type (optional but recommended)
+poetry run black .
+poetry run mypy .
+# Ruff is optional; run only if installed
+poetry run ruff check . || true
+```
+
+```bash
+# 1) Build catalog (fixtures)
+rm -f var/minutes.db && mkdir -p var
+sqlite3 var/minutes.db < catalog/schema.sql
+poetry run catalog-load --db var/minutes.db --src tests/fixtures
+```
+
+```bash
+# 2) Serve API (in another terminal)
+poetry run api-serve --db var/minutes.db --host 127.0.0.1 --port 8000
+```
+
+```bash
+# 3) Smoke via curl
+curl "http://127.0.0.1:8000/health"
+curl "http://127.0.0.1:8000/search?q=高島平"
+curl "http://127.0.0.1:8000/search?committee=文教児童委員会&date_from=2025-08-01&date_to=2025-08-31"
+curl "http://127.0.0.1:8000/document/1"
+```
+
+```bash
+# 4) (Optional) Rebuild script – fresh & stats
+poetry run python scripts/rebuild_catalog.py --db var/minutes.db --src tests/fixtures --fresh --analyze --vacuum --verbose
+```
+
+Notes:
+- Cheatsheet is a summary; avoid duplicating Quick Start details.
+- Default to fixtures; for real data, switch `--src` to `data/normalized/`.
+
 ## Test
 - 単体テスト: `poetry run pytest -q`
 - 429/503/Retry-After、ページング停止、重複除外、バックオフ上限などを responses でスタブ。
