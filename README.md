@@ -1,5 +1,9 @@
 # Itabashi Minutes — Dev Quickstart
 
+<!-- Contents (short) -->
+**Contents**
+- [Verification Cheatsheet (Sprint 2)](#verification-cheatsheet-sprint-2)
+
 ## Setup
 - Python 3.11 推奨。Poetry で依存導入: `poetry install --only main,dev`
 - 実行前に robots.txt とアクセス制御を遵守してください（1 req/sec + ジッター、夜間実行推奨）。
