@@ -48,6 +48,7 @@ pypdf = "^6.0.0"
 fastapi = "^0.110.0"
 uvicorn = { version = "^0.29.0", extras = ["standard"] }
 pydantic = "^2.9"
+PyYAML = "^6.0"
 
 [tool.poetry.group.app]
 optional = true
