@@ -66,6 +66,8 @@ class SearchResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    page: int
+    has_next: bool
 
 
 class SpeechDTO(BaseModel):
@@ -105,8 +107,10 @@ def create_app(db_path: str) -> FastAPI:
         committee: Optional[str] = Query(default=None),
         date_from: Optional[date] = Query(default=None),
         date_to: Optional[date] = Query(default=None),
-        limit: int = Query(default=20, ge=1, le=100),
+        limit: int = Query(default=10, ge=1, le=100),
         offset: int = Query(default=0, ge=0, le=10000),
+        order_by: Literal["relevance", "date", "committee"] = Query(default="date"),
+        order: Literal["asc", "desc"] = Query(default="desc"),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         params = {
@@ -119,11 +123,19 @@ def create_app(db_path: str) -> FastAPI:
 
         items: List[SearchItem] = []
         total = 0
+        order_dir = "ASC" if order.lower() == "asc" else "DESC"
 
         if q:
             norm_q = normalize_fts_query(q)
             params_q = dict(params)
             params_q["q"] = norm_q
+            # ORDER BY (safe whitelist)
+            if order_by == "relevance":
+                order_clause = f"m.hits {order_dir}, mn.meeting_date DESC, mn.id DESC"
+            elif order_by == "committee":
+                order_clause = f"mn.committee COLLATE NOCASE {order_dir}, mn.meeting_date DESC, mn.id DESC"
+            else:  # date
+                order_clause = f"mn.meeting_date {order_dir}, mn.id DESC"
 
             # total
             total_sql = """
@@ -144,7 +156,7 @@ def create_app(db_path: str) -> FastAPI:
             cur = conn.execute(total_sql, params_q)
             total = int(cur.fetchone()[0])
 
-            sql = """
+            sql = f"""
             WITH matched AS (
               SELECT sp.minutes_id AS mid,
                      COUNT(*) AS hits,
@@ -156,13 +168,14 @@ def create_app(db_path: str) -> FastAPI:
             )
             SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
                    m.hits AS hit_count,
-                   substr((SELECT speech_text FROM speeches WHERE id = m.first_sp_id), 1, 120) AS snippet
+                   snippet(sfts, -1, '<em>', '</em>', '…', 10) AS snippet
             FROM minutes mn
             JOIN matched m ON m.mid = mn.id
+            JOIN speeches_fts sfts ON sfts.rowid = m.first_sp_id
             WHERE (:committee IS NULL OR mn.committee = :committee)
               AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
               AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
-            ORDER BY mn.meeting_date DESC, m.hits DESC, mn.id DESC
+            ORDER BY {order_clause}
             LIMIT :limit OFFSET :offset
             """
             cur = conn.execute(sql, params_q)
@@ -178,6 +191,11 @@ def create_app(db_path: str) -> FastAPI:
                     )
                 )
         else:
+            # ORDER BY without query (relevance -> fallback to date)
+            if order_by == "committee":
+                order_clause = f"mn.committee COLLATE NOCASE {order_dir}, mn.meeting_date DESC, mn.id DESC"
+            else:
+                order_clause = f"mn.meeting_date {order_dir}, mn.id DESC"
             # total
             total_sql = """
             SELECT COUNT(*) AS cnt
@@ -189,7 +207,7 @@ def create_app(db_path: str) -> FastAPI:
             cur = conn.execute(total_sql, params)
             total = int(cur.fetchone()[0])
 
-            sql = """
+            sql = f"""
             SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
                    0 AS hit_count,
                    substr((SELECT speech_text
@@ -200,7 +218,7 @@ def create_app(db_path: str) -> FastAPI:
             WHERE (:committee IS NULL OR mn.committee = :committee)
               AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
               AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
-            ORDER BY mn.meeting_date DESC, mn.id DESC
+            ORDER BY {order_clause}
             LIMIT :limit OFFSET :offset
             """
             cur = conn.execute(sql, params)
@@ -215,8 +233,16 @@ def create_app(db_path: str) -> FastAPI:
                         snippet=(row["snippet"] or ""),
                     )
                 )
-
-        return SearchResponse(items=items, total=total, limit=limit, offset=offset)
+        page = (offset // limit) + 1 if limit > 0 else 1
+        has_next = (offset + len(items)) < total
+        return SearchResponse(
+            items=items,
+            total=total,
+            limit=limit,
+            offset=offset,
+            page=page,
+            has_next=has_next,
+        )
 
     @app.get("/document/{doc_id}", response_model=DocumentResponse)
     def get_document(doc_id: int, conn: sqlite3.Connection = Depends(get_conn)):
