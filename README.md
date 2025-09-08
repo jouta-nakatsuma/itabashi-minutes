@@ -101,6 +101,10 @@ Notes:
 - 単体テスト: `poetry run pytest -q`
 - 429/503/Retry-After、ページング停止、重複除外、バックオフ上限などを responses でスタブ。
 
+## Nightly
+- 概要: 毎晩のクロール→カタログ構築→成果物（`catalog.duckdb` / `index.json` / `documents.ndjson`）をArtifactsへ保存。金曜はRelease（`catalog-YYYYMMDD`）を作成。
+- 実行: GitHub Actions `Nightly`（JST 01:00）。手動実行は `workflow_dispatch`。
+- 成果物: Artifacts保持14日。失敗時はIssue自動起票（ログは `nightly-logs-YYYY-MM-DD`）。
 ## Notes
 - スキーマ互換性を破壊しないこと（meeting_id は出力に含むが検証時は除外投影）。
 - robots.txt を起動時に取得し、許可判定の上でのみクロールします（読込失敗時は警告ログ、can_fetch 例外時は許可扱い）。
