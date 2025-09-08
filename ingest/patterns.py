@@ -39,7 +39,7 @@ SPEAKER_LINE_RE_D: Pattern[str] = re.compile(
     rf"^(?:{BULLET_CLASS}\s*)?(?P<name>{NAME_PART})\s*(?P<role>{ROLE_PART})\s*{COLON_CLASS}\s*"
 )
 SPEAKER_LINE_RE_A: Pattern[str] = re.compile(
-    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s*(?P<name>{NAME_PART})\s*{COLON_CLASS}\s*"
+    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s+(?P<name>{NAME_PART})\s*{COLON_CLASS}\s*"
 )
 SPEAKER_LINE_RE_B: Pattern[str] = re.compile(
     rf"^(?:{BULLET_CLASS}\s*)?(?P<name>{NAME_PART})\s*{COLON_CLASS}\s*"
