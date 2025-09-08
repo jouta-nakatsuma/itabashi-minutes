@@ -1,0 +1,122 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 16 * * *'   # 01:00 JST (UTC+9)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Tokyo
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  crawl_build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      DATE: ${{ steps.sum.outputs.DATE }}
+      COUNT: ${{ steps.sum.outputs.COUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+      - name: Install Poetry
+        run: pipx install poetry==1.8.3
+      - name: Cache Poetry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: nightly-poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: nightly-poetry-${{ runner.os }}-
+      - name: Install deps (main only)
+        run: poetry install --no-interaction --only main
+      - name: Run nightly pipeline
+        run: |
+          chmod +x scripts/nightly.sh
+          ./scripts/nightly.sh | tee nightly.out
+      - name: Save run summary
+        id: sum
+        run: |
+          echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          COUNT=$(grep -Eo '"index_size": *[0-9]+' nightly.out | awk '{print $2}' | tail -n1)
+          echo "COUNT=${COUNT:-0}" >> $GITHUB_OUTPUT
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-dist-${{ steps.sum.outputs.DATE }}
+          path: |
+            dist/catalog.duckdb
+            dist/index.json
+            dist/documents.ndjson
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-logs-${{ steps.sum.outputs.DATE }}
+          path: |
+            logs/nightly.log
+            nightly.out
+          retention-days: 14
+
+  weekly_release:
+    needs: crawl_build
+    runs-on: ubuntu-latest
+    if: ${{ needs.crawl_build.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: catalog-dist-${{ needs.crawl_build.outputs.DATE }}
+          path: dist
+      - name: Check weekday (JST)
+        id: wd
+        run: echo "FRI=$([ $(date +%u) -eq 5 ] && echo true || echo false)" >> $GITHUB_OUTPUT
+      - name: Set date
+        id: d
+        run: echo "DATE=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+      - name: Create Release
+        if: ${{ steps.wd.outputs.FRI == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: catalog-${{ steps.d.outputs.DATE }}
+          name: Catalog ${{ steps.d.outputs.DATE }}
+          generate_release_notes: true
+          files: |
+            dist/catalog.duckdb
+            dist/index.json
+            dist/documents.ndjson
+
+  on_failure_issue:
+    needs: [crawl_build]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().slice(0,10);
+            const body = `Nightly failed on ${date}
+
+            See uploaded artifact 'nightly-logs-${date}' for logs.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly failed ${date}`,
+              labels: ['ci','nightly','bug'],
+              body
+            });
+
