@@ -1,0 +1,28 @@
+name: MCP Weekly
+
+on:
+  schedule:
+    - cron: '0 18 * * 5'  # Fri 18:00 UTC (Sat 03:00 JST)
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        py: [ '3.9', '3.10', '3.11' ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Install Poetry
+        run: pipx install poetry==1.8.3
+      - name: Refresh lock
+        run: poetry lock
+      - name: Install with mcp
+        run: poetry install --no-interaction --only main,dev --with mcp
+      - name: MCP import tests (optional)
+        run: poetry run pytest -q -k mcp_server || true
+      - name: MCP quick run (timeout)
+        run: timeout 5s poetry run mcp-server || true
+
