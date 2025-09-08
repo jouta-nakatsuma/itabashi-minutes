@@ -28,21 +28,24 @@ AGENDA_HEADING_RE: Pattern[str] = re.compile(
     rf"|陳情第.*?号\s*{COLON_CLASS}?\s*.+"
     rf"|第[一二三四五六七八九十百]+[ 　]*.+"
     rf"|[0-9０-９]{{1,3}}[.)）][ 　]*.+"
-    rf"|[◇◆■○●◎・].+"
+    rf"|[◇◆■・].+"
     rf")$"
 )
 
 # 話者行検出：「○中妻委員：」「教育長：」「理事者：」「○ 田中議員：」等
 ROLE_PART = r"(?:委員長|副委員長|委員|議員|部長|課長|教育長|理事者|副区長)"
 NAME_PART = r"[一-龥々ヵヶ゙゜・ー\u30A0-\u30FF\u3040-\u309F]{1,12}"
+SPEAKER_LINE_RE_D: Pattern[str] = re.compile(
+    rf"^(?:{BULLET_CLASS}\s*)?(?P<name>{NAME_PART})\s*(?P<role>{ROLE_PART})\s*{COLON_CLASS}\s*"
+)
 SPEAKER_LINE_RE_A: Pattern[str] = re.compile(
-    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s*(?P<name>{NAME_PART})\s*{COLON_CLASS}\s+"
+    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s*(?P<name>{NAME_PART})\s*{COLON_CLASS}\s*"
 )
 SPEAKER_LINE_RE_B: Pattern[str] = re.compile(
-    rf"^(?:{BULLET_CLASS}\s*)?(?P<name>{NAME_PART})\s*{COLON_CLASS}\s+"
+    rf"^(?:{BULLET_CLASS}\s*)?(?P<name>{NAME_PART})\s*{COLON_CLASS}\s*"
 )
 SPEAKER_LINE_RE_C: Pattern[str] = re.compile(
-    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s*{COLON_CLASS}\s+"
+    rf"^(?:{BULLET_CLASS}\s*)?(?P<role>{ROLE_PART})\s*{COLON_CLASS}\s*"
 )
 
 # ページノイズ（— 12 — など）/短い括弧書き（拍手・休憩・参照）/装飾のみの行
@@ -66,6 +69,9 @@ def is_agenda_heading(line: str) -> bool:
 
 def match_speaker_line(line: str) -> Optional[re.Match[str]]:
     s = normalize_space(line)
+    m = SPEAKER_LINE_RE_D.match(s)
+    if m:
+        return m
     m = SPEAKER_LINE_RE_A.match(s)
     if m:
         return m

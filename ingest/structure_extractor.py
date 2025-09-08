@@ -133,7 +133,7 @@ def _parse_block_speeches(lines: List[str], start: int, end: int) -> List[Speech
             role = m.groupdict().get("role")
             if role is None and name in ROLE_TITLES:
                 role = name
-            speaker = name.lstrip("○").strip()
+            speaker = name.lstrip("○").strip() if name else (role or "")
             # apply normalization
             role = normalize_role(role)
             speaker = normalize_name(speaker) or speaker
