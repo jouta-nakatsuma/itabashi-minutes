@@ -19,6 +19,7 @@ from .patterns import (
     match_speaker_line,
     normalize_space,
 )
+from .normalize import normalize_role, normalize_name, normalize_committee
 
 if _USE_PYDANTIC:
     class Speech(BaseModel):
@@ -105,7 +106,7 @@ def _flush_paragraph(buf: List[str], out: List[str]) -> None:
 
 def _split_after_colon(line: str) -> Tuple[str, str]:
     for i, ch in enumerate(line):
-        if ch in (":", "："):
+        if ch in (":", "：", "\uFE13"):
             return line[: i + 1], line[i + 1 :].strip()
     return line, ""
 
@@ -128,11 +129,14 @@ def _parse_block_speeches(lines: List[str], start: int, end: int) -> List[Speech
                 _flush_paragraph(para_buf, current.paragraphs)
                 speeches.append(current)
                 current = None
-            name = m.group("name")
-            role = m.group("role")
+            name = (m.groupdict().get("name") or "").strip()
+            role = m.groupdict().get("role")
             if role is None and name in ROLE_TITLES:
                 role = name
             speaker = name.lstrip("○").strip()
+            # apply normalization
+            role = normalize_role(role)
+            speaker = normalize_name(speaker) or speaker
             current = Speech(speaker=speaker, role=role, paragraphs=[])
             _, tail = _split_after_colon(raw)
             if tail:
@@ -158,7 +162,7 @@ def extract_minutes_structure(src: Path | str | Mapping[str, Any]) -> MinutesStr
     boundaries = _scan_agenda_boundaries(lines)
     ms = MinutesStructure(
         meeting_date=obj.get("meeting_date"),
-        committee=obj.get("committee"),
+        committee=normalize_committee(obj.get("committee")),
         page_url=obj.get("page_url"),
         pdf_url=obj.get("pdf_url"),
         agenda_items=[],
