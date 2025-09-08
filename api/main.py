@@ -168,10 +168,10 @@ def create_app(db_path: str) -> FastAPI:
             )
             SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
                    m.hits AS hit_count,
-                   snippet(sfts, -1, '<em>', '</em>', '…', 10) AS snippet
+                   snippet(speeches_fts, -1, '<em>', '</em>', '…', 10) AS snippet
             FROM minutes mn
             JOIN matched m ON m.mid = mn.id
-            JOIN speeches_fts sfts ON sfts.rowid = m.first_sp_id
+            JOIN speeches_fts ON speeches_fts.rowid = m.first_sp_id
             WHERE (:committee IS NULL OR mn.committee = :committee)
               AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
               AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
