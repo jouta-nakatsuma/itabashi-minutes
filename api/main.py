@@ -159,8 +159,7 @@ def create_app(db_path: str) -> FastAPI:
             sql = f"""
             WITH matched AS (
               SELECT sp.minutes_id AS mid,
-                     COUNT(*) AS hits,
-                     MIN(sp.id) AS first_sp_id
+                     COUNT(*) AS hits
               FROM speeches_fts
               JOIN speeches sp ON sp.id = speeches_fts.rowid
               WHERE speeches_fts MATCH :q
@@ -168,10 +167,17 @@ def create_app(db_path: str) -> FastAPI:
             )
             SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
                    m.hits AS hit_count,
-                   snippet(speeches_fts, -1, '<em>', '</em>', '…', 10) AS snippet
+                   (
+                     SELECT snippet(speeches_fts, -1, '<em>', '</em>', '…', 10)
+                     FROM speeches_fts
+                     JOIN speeches sp2 ON sp2.id = speeches_fts.rowid
+                     WHERE speeches_fts MATCH :q
+                       AND sp2.minutes_id = mn.id
+                     ORDER BY sp2.id ASC
+                     LIMIT 1
+                   ) AS snippet
             FROM minutes mn
             JOIN matched m ON m.mid = mn.id
-            JOIN speeches_fts ON speeches_fts.rowid = m.first_sp_id
             WHERE (:committee IS NULL OR mn.committee = :committee)
               AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
               AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
