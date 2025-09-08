@@ -14,6 +14,7 @@ jobs:
       PYTHONUNBUFFERED: "1"
       CRAWLER_MIN_RECORDS: "5"   # 安定したら10に引き上げ
       TZ: Asia/Tokyo
+      POETRY_VIRTUALENVS_PREFER_ACTIVE_PYTHON: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,6 +28,10 @@ jobs:
           path: ~/.cache/pypoetry
           key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
           restore-keys: poetry-${{ runner.os }}-
+      - name: Select Python for Poetry venv
+        run: poetry env use 3.10
+      - name: Refresh lock (no update)
+        run: poetry lock --no-update
       - name: Install deps
         run: poetry install --no-interaction --only main,dev
       - name: Run tests
