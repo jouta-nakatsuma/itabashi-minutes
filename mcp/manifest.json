@@ -1,0 +1,38 @@
+{
+  "name": "itabashi-minutes",
+  "version": "0.1.0",
+  "description": "Itabashi Ward Council Minutes — search and document access via stdio RPC.",
+  "tools": [
+    {
+      "name": "search_minutes",
+      "description": "全文検索で会議録を探し、強調（<em>）付きスニペットとメタ情報を返す。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "q": { "type": ["string", "null"] },
+          "committee": { "type": ["string", "null"] },
+          "date_from": { "type": ["string", "null"], "format": "date" },
+          "date_to": { "type": ["string", "null"], "format": "date" },
+          "order_by": { "type": "string", "enum": ["date", "committee", "relevance"], "default": "date" },
+          "order": { "type": "string", "enum": ["asc", "desc"], "default": "desc" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 },
+          "offset": { "type": "integer", "minimum": 0, "default": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_document",
+      "description": "会議録1件の詳細（メタ・議題・発言・PDF URL）を返す。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
+

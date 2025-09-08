@@ -141,3 +141,15 @@ Notes:
 - CI チェック:
   - PR 上で `tools/check_schema_compat.py` により `schemas/minutes.schema.json` の互換性を検査します。
   - 破壊的変更が検出されるとワークフローが失敗します。
+
+## MCP / JSON-RPC Server
+- 依存導入（MCP含む）: `poetry install --only main,dev --with mcp`
+- APIベースURL（任意）: `.env` に `IM_API_BASE=http://127.0.0.1:8000`
+- 起動: `poetry run mcp-server`
+- 提供ツール:
+  - `search_minutes(params)`: 会議録を全文検索し、`items/total/limit/offset/page/has_next` を返す（<em>強調あり）
+  - `get_document({id})`: 1件の会議録詳細を返す
+- 注意:
+  - `order_by=relevance` は `q` が空のとき `date` へ自動フォールバック
+  - 404/400/422/5xx は分類してエラー返却（`code`/`message`/`request_id`）
+  - 標準エラーに `[MCP] itabashi-minutes ready (base=...)` を1行だけ出力
