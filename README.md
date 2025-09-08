@@ -34,6 +34,22 @@ curl "http://127.0.0.1:8000/document/1"
   - 出力: JSON `crawler/sample/sample_minutes.json`
   - 環境変数（.env）でページ数や遅延などを制御できます（`MAX_PAGES`, `MAX_ITEMS`, `REQUEST_DELAY` など）。
 
+## API v0.2 — Pagination / Sort / Highlight
+- クエリパラメータ: `limit`(<=100), `offset`(>=0), `order_by`(`relevance|date|committee`, 既定=`date`), `order`(`asc|desc`, 既定=`desc`)
+- レスポンスに `total`, `page`, `has_next` を含みます（後方互換維持）。
+
+例:
+```bash
+# 関連度順 + ハイライト（<em>…</em>）
+curl "http://127.0.0.1:8000/search?q=給食&limit=5&order_by=relevance"
+
+# ページング（2ページ目相当）
+curl "http://127.0.0.1:8000/search?limit=3&offset=3"
+
+# 委員会名の昇順ソート
+curl "http://127.0.0.1:8000/search?order_by=committee&order=asc&limit=5"
+```
+
 ## Apply Unified Diff (one-shot)
 - ドライラン: `git diff | poetry run python scripts/one_shot_apply.py --dry-run --strip 1`
 - 実適用（バックアップ作成）: `git diff | poetry run python scripts/one_shot_apply.py --strip 1 --backup`
@@ -55,6 +71,13 @@ poetry run mypy .
 # Ruff 導入済みなら:
 poetry run ruff check .
 ```
+
+## UI (Streamlit)
+- 依存導入（UI含む）: `poetry install --only main,dev --with app`
+- APIベースURL（任意）: `.env` に `IM_API_BASE=http://127.0.0.1:8000`
+- 起動: `poetry run ui-serve`
+- 操作: キーワード/委員会/日付レンジ/並び替えで検索 → 一覧 → 詳細（PDFリンク）。`relevance` はキーワード検索時のみ有効。
+- 備考: 日付フィルタはオプション（チェックON時のみ適用）。
 
 ## Verification Cheatsheet (Sprint 2)
 
