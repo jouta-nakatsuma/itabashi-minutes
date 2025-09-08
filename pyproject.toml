@@ -84,6 +84,7 @@ itabashi-crawler = "crawler.cli:main"
 itabashi-normalizer = "ingest.text_normalizer:main"
 catalog-load = "catalog.load:main"
 api-serve = "api.main:serve"
+ui-serve = "app.ui_launcher:main"
 
 [tool.black]
 line-length = 88

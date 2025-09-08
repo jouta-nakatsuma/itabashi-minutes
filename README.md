@@ -72,6 +72,13 @@ poetry run mypy .
 poetry run ruff check .
 ```
 
+## UI (Streamlit)
+- 依存導入（UI含む）: `poetry install --only main,dev --with app`
+- APIベースURL（任意）: `.env` に `IM_API_BASE=http://127.0.0.1:8000`
+- 起動: `poetry run ui-serve`
+- 操作: キーワード/委員会/日付レンジ/並び替えで検索 → 一覧 → 詳細（PDFリンク）。`relevance` はキーワード検索時のみ有効。
+- 備考: 日付フィルタはオプション（チェックON時のみ適用）。
+
 ## Verification Cheatsheet (Sprint 2)
 
 > Copy & paste OK / fixtures-based
