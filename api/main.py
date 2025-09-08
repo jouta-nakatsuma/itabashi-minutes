@@ -4,7 +4,7 @@ import argparse
 import sqlite3
 from datetime import date
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
