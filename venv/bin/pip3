@@ -1,4 +1,4 @@
-#!/private/var/folders/zx/49vq94ms1j12pbbykpm60m_80000gn/T/vibe-kanban/worktrees/vk-21bb-planning-w/venv/bin/python3
+#!/Users/nakazma2/itabashi-minutes/itabashi-minutes/venv/bin/python3.10
 # -*- coding: utf-8 -*-
 import re
 import sys
