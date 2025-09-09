@@ -3,6 +3,7 @@
 <!-- Contents (short) -->
 **Contents**
 - [Verification Cheatsheet (Sprint 2)](#verification-cheatsheet-sprint-2)
+  - Sprint 3 完了版の横断チェックは `docs/Verification-Cheatsheet_Sprint3.md` を参照
 
 ## Setup
 - Python 3.11 推奨。Poetry で依存導入: `poetry install --only main,dev`
