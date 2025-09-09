@@ -129,6 +129,7 @@ Notes:
 - 概要: 毎晩のクロール→カタログ構築→成果物（`catalog.duckdb` / `index.json` / `documents.ndjson`）をArtifactsへ保存。金曜はRelease（`catalog-YYYYMMDD`）を作成。
 - 実行: GitHub Actions `Nightly`（JST 01:00）。手動実行は `workflow_dispatch`。
 - 成果物: Artifacts保持14日。失敗時はIssue自動起票（ログは `nightly-logs-YYYY-MM-DD`）。
+ - Artifacts 名称（目安）: `catalog-dist-YYYY-MM-DD` / `nightly-logs-YYYY-MM-DD`
 
 Troubleshoot（Nightly）
 ```bash

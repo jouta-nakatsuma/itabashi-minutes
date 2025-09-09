@@ -121,6 +121,7 @@
 
 ## 参考ファイル
 - README.md（Quick Start / Cheatsheet / Lint&Type）
+ - docs/Verification-Cheatsheet_Sprint3.md（横断チェック）
 - docs/Codex-result_*.md（各Stepの報告）
 - scripts/one_shot_apply.py / scripts/rebuild_catalog.py
 - .github/workflows/*.yml（CI）
