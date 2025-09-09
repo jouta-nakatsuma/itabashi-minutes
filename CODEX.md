@@ -76,6 +76,32 @@
   - `/search?committee=文教児童委員会&date_from=2025-08-01&date_to=2025-08-31`
   - `/document/1`
 
+### Japanese Search（CJK）メモ（Sprint 3後の安定化）
+- 挙動: `q` にCJKを含む場合は語尾 `*` を付与してFTSへ、かつ LIKE(`%q%`) をフォールバック実行し、UNION→DISTINCTで去重。
+- 並び: `order_by=relevance` では `COALESCE(hits,0)`→日付降順。他は既存どおり。
+- スニペット: FTSの`snippet()`が無ければ `substr(speech_text,1,120)` にフォールバック。
+- 受入確認（fixtures相当の最小DB）:
+  - `議会交際費` → id=12（<em>強調あり）
+  - `交際費` → id=12（LIKE経由、hit_count=0, 強調なし）
+  - `行政視察` → id=6（強調あり）
+  - `議会報告会` → id=3（強調あり）
+
+### トラブルシュート: ローカルで古いAPIが動く
+- 症状: CJK部分語が0件のまま。FTSは動作しているがLIKEフォールバックが効かない。
+- 典型原因: 複数クローン/別ディレクトリでAPI起動。`api-serve` がローカルの `api/` ではなく別モジュールを解決。
+- 対処:
+ 1) APIをローカルソース直参照で起動
+    - `PYTHONPATH=$(pwd) poetry run api-serve --db <絶対パス>/var/minutes.db --host 127.0.0.1 --port 8010`
+    - 代替: `poetry run uvicorn api.main:create_app --factory --host 127.0.0.1 --port 8010`
+ 2) DBは絶対パスで指定（ディレクトリ取り違い防止）
+ 3) 確認:
+    - `curl --get 'http://127.0.0.1:8010/search' --data-urlencode 'q=交際費'` → id=12 を含む
+    - `curl --get 'http://127.0.0.1:8010/search' --data-urlencode 'q=行政視察'` → id=6 を含む
+
+備考
+- FTS外部コンテンツの再構築は `INSERT INTO speeches_fts(speeches_fts) VALUES('rebuild');` で明示。
+- 必要ならCJK検出に半角カナ `\uff61-\uff9f` を追加検討。
+
 ## Sprint 3 成果（要点）
 - #29 API v0.2: `/search` に limit/offset/order_by/order、`page/has_next`、FTS `snippet()` ハイライト、relevance=ヒット数降順
 - #30 UI v0.1: Streamlit 検索/一覧/詳細、日付フィルタはチェックON時のみ

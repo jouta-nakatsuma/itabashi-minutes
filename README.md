@@ -35,6 +35,17 @@ curl "http://127.0.0.1:8000/document/1"
 curl --get "http://127.0.0.1:8000/search" --data-urlencode "q=行政視察"
 ```
 
+### Troubleshoot（APIが古い挙動になる場合）
+- 複数クローンやモジュール解決の都合で、ローカルの `api/` が読まれない場合があります。以下でソース直読みを強制:
+```bash
+# 例: 別ポート8010で起動（DBは絶対パス指定推奨）
+PYTHONPATH="$(pwd)" poetry run api-serve \
+  --db "$(pwd)/var/minutes.db" --host 127.0.0.1 --port 8010
+# 代替（Uvicornのfactory起動）
+poetry run uvicorn api.main:create_app --factory --host 127.0.0.1 --port 8010
+```
+- UIからの接続は `IM_API_BASE` を合わせてください（例: `IM_API_BASE=http://127.0.0.1:8010`）。
+
 ## Configuration
 - `.env`（任意）: `REQUEST_DELAY=1.0`, `MAX_PAGES=2`, `MAX_ITEMS=50`, `RETRIES=3`, `TIMEOUT_CONNECT=10`, `TIMEOUT_READ=30`, `BACKOFF_BASE=1.0`, `BACKOFF_MAX=30.0`, `USER_AGENT="ItabashiMinutesBot/0.1 (+contact)"`, `BASE_URL=https://www.city.itabashi.tokyo.jp`, `ALLOW_PATTERN=^https?://[^/]+/gikai/kaigiroku/.*`, `DENY_PATTERNS=\.zip$,\.csv$`
 - URL制約: 許可リスト `^https?://[^/]+/gikai/kaigiroku/.*`、DENYは `.zip,.csv` など。

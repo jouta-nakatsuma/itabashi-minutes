@@ -55,6 +55,7 @@ optional = true
 
 [tool.poetry.group.app.dependencies]
 streamlit = ">=1.28,<2.0"
+protobuf = ">=3.20,<5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
