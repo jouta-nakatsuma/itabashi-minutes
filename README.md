@@ -129,6 +129,19 @@ Notes:
 - 概要: 毎晩のクロール→カタログ構築→成果物（`catalog.duckdb` / `index.json` / `documents.ndjson`）をArtifactsへ保存。金曜はRelease（`catalog-YYYYMMDD`）を作成。
 - 実行: GitHub Actions `Nightly`（JST 01:00）。手動実行は `workflow_dispatch`。
 - 成果物: Artifacts保持14日。失敗時はIssue自動起票（ログは `nightly-logs-YYYY-MM-DD`）。
+
+Troubleshoot（Nightly）
+```bash
+# 最近の実行状況を確認（上位5件）
+gh run list --workflow Nightly --limit 5
+
+# 失敗日のログを取得（例: 2025-09-08）
+gh run download --name "nightly-logs-YYYY-MM-DD"
+
+# ログの中身を見る
+ls -l nightly.out logs/nightly.log
+sed -n '1,200p' nightly.out | sed -n '1,80p'
+```
 ## Notes
 - スキーマ互換性を破壊しないこと（meeting_id は出力に含むが検証時は除外投影）。
 - robots.txt を起動時に取得し、許可判定の上でのみクロールします（読込失敗時は警告ログ、can_fetch 例外時は許可扱い）。

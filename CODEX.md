@@ -16,6 +16,24 @@
 
 リリース: `v0.3.0-sprint3`（想定）
 
+## ステータス（2025-09-09 14:33 JST）
+- #34 完了: Verification Cheatsheet (Sprint 3) と README/スクリプトを追加（PR #42）。
+- #22〜#25: Sprint 3 実装に包含（#33/#29/#31/#32 にて実現）。duplicate コメント付きでClose。
+- #41: Nightly failed 2025-09-08（Artifactsに `nightly-logs-YYYY-MM-DD`）。本日時点は監視継続、恒常化時のみ調整。
+
+### Nightly トリアージ手順（Playbook）
+- 状況確認:
+  - `gh run list --workflow Nightly --limit 5`
+  - `gh run download --name "nightly-logs-YYYY-MM-DD"`
+  - `sed -n '1,200p' nightly.out` / `sed -n '1,200p' logs/nightly.log`
+- 典型原因と対処:
+  - 429/5xx/タイムアウト: バックオフ/リトライ上限の緩和、夜間実行（既定）。単発なら再実行で様子見。
+  - HTML構造変化: crawler のセレクタ更新。responsesベースのテスト追加を検討。
+  - I/Oエラー（Artifactsなし）: 権限/パスを確認。`if-no-files-found: error` で検知済み。
+- 再実行/手動検証:
+  - `gh workflow run Nightly --ref main && gh run watch`
+  - ローカル: `bash scripts/nightly.sh`（API不要、Poetry main のみ）
+
 ## 実行環境・依存
 - Python: 3.11 推奨（CIは3.9/3.10/3.11）
 - Poetry: ローカルは `poetry install --only main,dev` でOK（UI/ノート類は不要）
