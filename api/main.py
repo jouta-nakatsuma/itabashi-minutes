@@ -151,7 +151,12 @@ def create_app(db_path: str) -> FastAPI:
                 params_q = dict(params)
                 params_q["fts_query"] = fts_q
                 params_q["use_like"] = 1
+<<<<<<< HEAD
                 params_q["like_pattern"] = f"%{q}%"  # use raw q for LIKE (per review)
+=======
+                params_q["like_pattern"] = f"%{q}%"  # use raw q for LIKE
+                # ORDER BY (safe whitelist)
+>>>>>>> 44ad7f9 (feat(api): CJK search fallback (FTS wildcard + LIKE) + tests + docs)
                 if order_by == "relevance":
                     order_clause = f"COALESCE(f.hits, 0) {order_dir}, mn.meeting_date DESC, mn.id DESC"
                 elif order_by == "committee":
