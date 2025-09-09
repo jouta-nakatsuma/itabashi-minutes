@@ -26,6 +26,15 @@ curl "http://127.0.0.1:8000/search?committee=文教児童委員会&date_from=202
 curl "http://127.0.0.1:8000/document/1"
 ```
 
+### Japanese search (CJK)
+- CJK を含む `q` は語ごとに接尾 `*` を付与して FTS に投げ、さらに LIKE (`%q%`) フォールバックを併用して結果を統合します（重複は除外）。
+- FTS ハイライトが無い場合、`substr(speech_text, 1, 120)` にフォールバックします。
+- 並び順は既存仕様を踏襲（`order_by=relevance` 時はヒット数→日付降順、他はそのまま）。
+例:
+```bash
+curl --get "http://127.0.0.1:8000/search" --data-urlencode "q=行政視察"
+```
+
 ## Configuration
 - `.env`（任意）: `REQUEST_DELAY=1.0`, `MAX_PAGES=2`, `MAX_ITEMS=50`, `RETRIES=3`, `TIMEOUT_CONNECT=10`, `TIMEOUT_READ=30`, `BACKOFF_BASE=1.0`, `BACKOFF_MAX=30.0`, `USER_AGENT="ItabashiMinutesBot/0.1 (+contact)"`, `BASE_URL=https://www.city.itabashi.tokyo.jp`, `ALLOW_PATTERN=^https?://[^/]+/gikai/kaigiroku/.*`, `DENY_PATTERNS=\.zip$,\.csv$`
 - URL制約: 許可リスト `^https?://[^/]+/gikai/kaigiroku/.*`、DENYは `.zip,.csv` など。
