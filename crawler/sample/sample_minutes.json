@@ -1,5 +1,16 @@
 [
   {
+    "meeting_id": "2025-09-04_その他_b0902494",
+    "meeting_date": "2025-09-04",
+    "committee": "その他",
+    "title": "令和7年度　議会交際費",
+    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kousaihi/1057844.html",
+    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/057/844/r704_kousaihi2.pdf",
+    "agenda_items": [],
+    "crawled_at": "2025-09-09T18:33:55.034897",
+    "doc_type": "議会交際費"
+  },
+  {
     "meeting_id": "2025-08-21_その他_4ef65d06",
     "meeting_date": "2025-08-21",
     "committee": "文教児童委員会",
@@ -7,7 +18,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/bunkyojidou/1059019.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/019/r70821_bu_1.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:46.840507",
+    "crawled_at": "2025-09-09T18:33:56.089958",
     "doc_type": "委員会次第"
   },
   {
@@ -18,7 +29,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/toshikensetsu/1059018.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/018/r70821_to_1.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:47.873288",
+    "crawled_at": "2025-09-09T18:33:57.199944",
     "doc_type": "委員会次第"
   },
   {
@@ -29,7 +40,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kenkofukushi/1059017.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/017/r70820_ke_1.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:49.027128",
+    "crawled_at": "2025-09-09T18:33:58.354372",
     "doc_type": "委員会次第"
   },
   {
@@ -40,7 +51,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kuminkankyo/1059016.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/016/r70820_ku_1.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:50.176460",
+    "crawled_at": "2025-09-09T18:33:59.521197",
     "doc_type": "委員会次第"
   },
   {
@@ -51,19 +62,8 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/kikakusoumu/1059014.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/059/014/r70820_ki_1.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:51.313372",
+    "crawled_at": "2025-09-09T18:34:00.674049",
     "doc_type": "委員会次第"
-  },
-  {
-    "meeting_id": "2025-08-05_その他_a9361279",
-    "meeting_date": "2025-08-05",
-    "committee": "その他",
-    "title": "令和7年度　議会交際費",
-    "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kousaihi/1057844.html",
-    "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/057/844/r704_kousaihi2.pdf",
-    "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:52.376144",
-    "doc_type": "議会交際費"
   },
   {
     "meeting_id": "2025-07-20_その他_eeb6983e",
@@ -73,7 +73,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/dayori/text/1058811/index.html",
     "pdf_url": null,
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:53.471703",
+    "crawled_at": "2025-09-09T18:34:01.702596",
     "doc_type": "区議会だより"
   },
   {
@@ -84,7 +84,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/dayori/pdf/1058797.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/058/797/da213_1-8.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:54.604273",
+    "crawled_at": "2025-09-09T18:34:02.857802",
     "doc_type": "区議会だより"
   },
   {
@@ -95,7 +95,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/nenpo/1027645/index.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/027/645/gikai_houkokukai_12.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:55.664661",
+    "crawled_at": "2025-09-09T18:34:04.044567",
     "doc_type": "その他"
   },
   {
@@ -106,7 +106,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/gian/1011530.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/011/530/r70623_giankekka.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:44:56.685559",
+    "crawled_at": "2025-09-09T18:34:05.118462",
     "doc_type": "その他"
   },
   {
@@ -117,7 +117,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/1048702.html",
     "pdf_url": "https://www.city.itabashi.tokyo.jp/_res/projects/default_project/_page_/001/048/702/gikaiyouran_4.pdf",
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:45:15.243864",
+    "crawled_at": "2025-09-09T18:34:24.435753",
     "doc_type": "その他"
   },
   {
@@ -128,7 +128,7 @@
     "page_url": "https://www.city.itabashi.tokyo.jp/kugikai/kaigishidai/iinnkaishidai/index.html",
     "pdf_url": null,
     "agenda_items": [],
-    "crawled_at": "2025-08-26T18:45:18.384538",
+    "crawled_at": "2025-09-09T18:34:27.665118",
     "doc_type": "委員会次第"
   }
 ]

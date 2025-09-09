@@ -260,7 +260,7 @@ def main() -> None:  # pragma: no cover - UI entry
     )
     if changed:
         st.session_state["offset"] = new_offset
-        st.experimental_rerun()
+        st.rerun()
 
     # List
     maybe_id = _render_list(
@@ -270,7 +270,7 @@ def main() -> None:  # pragma: no cover - UI entry
     )
     if maybe_id is not None:
         st.session_state["selected_id"] = int(maybe_id)
-        st.experimental_rerun()
+        st.rerun()
 
 
 if __name__ == "__main__":  # pragma: no cover
