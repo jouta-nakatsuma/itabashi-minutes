@@ -52,6 +52,23 @@ def normalize_fts_query(q: str) -> str:
     return " ".join(tokens)
 
 
+# CJK detection and FTS query shaping (for Japanese search)
+_CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]")
+
+def is_cjk_query(q: str) -> bool:
+    return bool(_CJK_RE.search(q or ""))
+
+def to_fts_query(q: str, cjk: bool) -> str:
+    if not q:
+        return ""
+    if not cjk:
+        return q  # keep current behavior for non-CJK
+    terms = [t for t in re.split(r"[\s\u3000]+", q) if t]
+    if not terms:
+        return q + "*"
+    return " AND ".join(f"{t}*" for t in terms)
+
+
 class SearchItem(BaseModel):
     id: int
     meeting_date: Optional[str] = None
@@ -127,75 +144,197 @@ def create_app(db_path: str) -> FastAPI:
 
         if q:
             norm_q = normalize_fts_query(q)
-            params_q = dict(params)
-            params_q["q"] = norm_q
-            # ORDER BY (safe whitelist)
-            if order_by == "relevance":
-                order_clause = f"m.hits {order_dir}, mn.meeting_date DESC, mn.id DESC"
-            elif order_by == "committee":
-                order_clause = f"mn.committee COLLATE NOCASE {order_dir}, mn.meeting_date DESC, mn.id DESC"
-            else:  # date
-                order_clause = f"mn.meeting_date {order_dir}, mn.id DESC"
+            cjk = is_cjk_query(norm_q)
+            if cjk:
+                # CJK: wildcard + LIKE fallback; merge and dedupe
+                fts_q = to_fts_query(norm_q, cjk=True)
+                params_q = dict(params)
+                params_q["fts_query"] = fts_q
+                params_q["use_like"] = 1
+                params_q["like_pattern"] = f"%{q}%"  # use raw q for LIKE (per review)
+                if order_by == "relevance":
+                    order_clause = f"COALESCE(f.hits, 0) {order_dir}, mn.meeting_date DESC, mn.id DESC"
+                elif order_by == "committee":
+                    order_clause = f"mn.committee COLLATE NOCASE {order_dir}, mn.meeting_date DESC, mn.id DESC"
+                else:  # date
+                    order_clause = f"mn.meeting_date {order_dir}, mn.id DESC"
 
-            # total
-            total_sql = """
-            WITH matched AS (
-              SELECT sp.minutes_id AS mid
-              FROM speeches_fts
-              JOIN speeches sp ON sp.id = speeches_fts.rowid
-              WHERE speeches_fts MATCH :q
-              GROUP BY sp.minutes_id
-            )
-            SELECT COUNT(*) AS cnt
-            FROM minutes mn
-            JOIN matched m ON m.mid = mn.id
-            WHERE (:committee IS NULL OR mn.committee = :committee)
-              AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
-              AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
-            """
-            cur = conn.execute(total_sql, params_q)
-            total = int(cur.fetchone()[0])
-
-            sql = f"""
-            WITH matched AS (
-              SELECT sp.minutes_id AS mid,
-                     COUNT(*) AS hits
-              FROM speeches_fts
-              JOIN speeches sp ON sp.id = speeches_fts.rowid
-              WHERE speeches_fts MATCH :q
-              GROUP BY sp.minutes_id
-            )
-            SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
-                   m.hits AS hit_count,
-                   (
-                     SELECT snippet(speeches_fts, -1, '<em>', '</em>', '…', 10)
-                     FROM speeches_fts
-                     JOIN speeches sp2 ON sp2.id = speeches_fts.rowid
-                     WHERE speeches_fts MATCH :q
-                       AND sp2.minutes_id = mn.id
-                     ORDER BY sp2.id ASC
-                     LIMIT 1
-                   ) AS snippet
-            FROM minutes mn
-            JOIN matched m ON m.mid = mn.id
-            WHERE (:committee IS NULL OR mn.committee = :committee)
-              AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
-              AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
-            ORDER BY {order_clause}
-            LIMIT :limit OFFSET :offset
-            """
-            cur = conn.execute(sql, params_q)
-            for row in cur.fetchall():
-                items.append(
-                    SearchItem(
-                        id=row["id"],
-                        meeting_date=row["meeting_date"],
-                        committee=row["committee"],
-                        title=row["title"],
-                        hit_count=row["hit_count"] or 0,
-                        snippet=(row["snippet"] or ""),
-                    )
+                total_sql = """
+                WITH f AS (
+                  SELECT sp.minutes_id AS mid, COUNT(*) AS hits
+                  FROM speeches_fts
+                  JOIN speeches sp ON speeches_fts.rowid = sp.id
+                  WHERE speeches_fts MATCH :fts_query
+                  GROUP BY sp.minutes_id
+                ),
+                l AS (
+                  SELECT sp.minutes_id AS mid
+                  FROM speeches sp
+                  WHERE (:use_like = 1) AND sp.speech_text LIKE :like_pattern ESCAPE '\\'
+                ),
+                u AS (
+                  SELECT mid FROM f
+                  UNION ALL
+                  SELECT mid FROM l
+                ),
+                mset AS (
+                  SELECT DISTINCT mid FROM u
                 )
+                SELECT COUNT(*) AS cnt
+                FROM minutes mn
+                JOIN mset ms ON ms.mid = mn.id
+                WHERE (:committee IS NULL OR mn.committee = :committee)
+                  AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
+                  AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
+                """
+                cur = conn.execute(total_sql, params_q)
+                total = int(cur.fetchone()[0])
+
+                sql = f"""
+                WITH f AS (
+                  SELECT sp.minutes_id AS mid, COUNT(*) AS hits
+                  FROM speeches_fts
+                  JOIN speeches sp ON speeches_fts.rowid = sp.id
+                  WHERE speeches_fts MATCH :fts_query
+                  GROUP BY sp.minutes_id
+                ),
+                l AS (
+                  SELECT sp.minutes_id AS mid
+                  FROM speeches sp
+                  WHERE (:use_like = 1) AND sp.speech_text LIKE :like_pattern ESCAPE '\\'
+                ),
+                u AS (
+                  SELECT mid FROM f
+                  UNION ALL
+                  SELECT mid FROM l
+                ),
+                mset AS (
+                  SELECT DISTINCT mid FROM u
+                )
+                SELECT
+                  mn.id,
+                  mn.meeting_date,
+                  mn.committee,
+                  mn.title,
+                  COALESCE(f.hits, 0) AS hit_count,
+                  COALESCE(
+                    (
+                      SELECT snippet(speeches_fts, -1, '<em>', '</em>', '…', 10)
+                      FROM speeches_fts
+                      JOIN speeches sp2 ON sp2.id = speeches_fts.rowid
+                      WHERE speeches_fts MATCH :fts_query
+                        AND sp2.minutes_id = mn.id
+                      ORDER BY sp2.id ASC
+                      LIMIT 1
+                    ),
+                    (
+                      SELECT substr(sp3.speech_text, 1, 120)
+                      FROM speeches sp3
+                      WHERE (:use_like = 1)
+                        AND sp3.minutes_id = mn.id
+                        AND sp3.speech_text LIKE :like_pattern ESCAPE '\\'
+                      ORDER BY sp3.id ASC
+                      LIMIT 1
+                    ),
+                    (
+                      SELECT substr(sp4.speech_text, 1, 120)
+                      FROM speeches sp4
+                      WHERE sp4.minutes_id = mn.id
+                      ORDER BY sp4.id ASC
+                      LIMIT 1
+                    )
+                  ) AS snippet
+                FROM minutes mn
+                JOIN mset ms ON ms.mid = mn.id
+                LEFT JOIN f ON f.mid = mn.id
+                WHERE (:committee IS NULL OR mn.committee = :committee)
+                  AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
+                  AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
+                ORDER BY {order_clause}
+                LIMIT :limit OFFSET :offset
+                """
+                cur = conn.execute(sql, params_q)
+                for row in cur.fetchall():
+                    items.append(
+                        SearchItem(
+                            id=row["id"],
+                            meeting_date=row["meeting_date"],
+                            committee=row["committee"],
+                            title=row["title"],
+                            hit_count=row["hit_count"] or 0,
+                            snippet=(row["snippet"] or ""),
+                        )
+                    )
+            else:
+                params_q = dict(params)
+                params_q["q"] = norm_q
+                # ORDER BY (safe whitelist)
+                if order_by == "relevance":
+                    order_clause = f"m.hits {order_dir}, mn.meeting_date DESC, mn.id DESC"
+                elif order_by == "committee":
+                    order_clause = f"mn.committee COLLATE NOCASE {order_dir}, mn.meeting_date DESC, mn.id DESC"
+                else:  # date
+                    order_clause = f"mn.meeting_date {order_dir}, mn.id DESC"
+
+                # total
+                total_sql = """
+                WITH matched AS (
+                  SELECT sp.minutes_id AS mid
+                  FROM speeches_fts
+                  JOIN speeches sp ON sp.id = speeches_fts.rowid
+                  WHERE speeches_fts MATCH :q
+                  GROUP BY sp.minutes_id
+                )
+                SELECT COUNT(*) AS cnt
+                FROM minutes mn
+                JOIN matched m ON m.mid = mn.id
+                WHERE (:committee IS NULL OR mn.committee = :committee)
+                  AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
+                  AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
+                """
+                cur = conn.execute(total_sql, params_q)
+                total = int(cur.fetchone()[0])
+
+                sql = f"""
+                WITH matched AS (
+                  SELECT sp.minutes_id AS mid,
+                         COUNT(*) AS hits
+                  FROM speeches_fts
+                  JOIN speeches sp ON sp.id = speeches_fts.rowid
+                  WHERE speeches_fts MATCH :q
+                  GROUP BY sp.minutes_id
+                )
+                SELECT mn.id, mn.meeting_date, mn.committee, mn.title,
+                       m.hits AS hit_count,
+                       (
+                         SELECT snippet(speeches_fts, -1, '<em>', '</em>', '…', 10)
+                         FROM speeches_fts
+                         JOIN speeches sp2 ON sp2.id = speeches_fts.rowid
+                         WHERE speeches_fts MATCH :q
+                           AND sp2.minutes_id = mn.id
+                         ORDER BY sp2.id ASC
+                         LIMIT 1
+                       ) AS snippet
+                FROM minutes mn
+                JOIN matched m ON m.mid = mn.id
+                WHERE (:committee IS NULL OR mn.committee = :committee)
+                  AND (:date_from IS NULL OR mn.meeting_date >= :date_from)
+                  AND (:date_to   IS NULL OR mn.meeting_date <= :date_to)
+                ORDER BY {order_clause}
+                LIMIT :limit OFFSET :offset
+                """
+                cur = conn.execute(sql, params_q)
+                for row in cur.fetchall():
+                    items.append(
+                        SearchItem(
+                            id=row["id"],
+                            meeting_date=row["meeting_date"],
+                            committee=row["committee"],
+                            title=row["title"],
+                            hit_count=row["hit_count"] or 0,
+                            snippet=(row["snippet"] or ""),
+                        )
+                    )
         else:
             # ORDER BY without query (relevance -> fallback to date)
             if order_by == "committee":
